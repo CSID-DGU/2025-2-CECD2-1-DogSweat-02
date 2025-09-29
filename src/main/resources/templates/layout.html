@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" th:fragment="layout (title, content, headResources)">
+<head>
+    <meta charset="UTF-8">
+    <title th:replace="${title}">E-N-C 안전 시스템</title>
+    <link rel="stylesheet" th:href="@{/css/layout.css}">
+    <th:block th:if="${headResources != null}" th:replace="${headResources}"></th:block>
+</head>
+<body>
+    <div class="app-shell">
+        <div class="page-shell">
+            <nav class="side-menu" aria-label="섹션 탐색">
+                <div class="brand-block">
+                    <div class="brand-mark">ENC</div>
+                    <div>
+                        <p class="brand-name">안전 관제센터</p>
+                        <p class="brand-description">캠퍼스 군중·사고 관제 플랫폼</p>
+                    </div>
+                </div>
+                <p class="side-menu__title">관제</p>
+                <a th:href="@{/}" th:classappend="${requestURI == '/' ? 'active' : ''}">대시보드</a>
+                <a th:href="@{/analysis}" th:classappend="${requestURI == '/analysis' ? 'active' : ''}">상세 분석</a>
+                <a href="#">경보 내역</a>
+                <a href="#">보고서</a>
+                <p class="side-menu__title">관리</p>
+                <a href="#">일정 관리</a>
+                <a href="#">설정</a>
+            </nav>
+            <main class="page-content" th:insert="${content}"></main>
+        </div>
+    </div>
+</body>
+</html>
