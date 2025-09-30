@@ -1,5 +1,5 @@
 ﻿:root {
-    --background: #f4f6f8;
+    --background: #f6f7fb;
     --foreground: #1f2933;
     --muted-foreground: #5f6c80;
     --border: #d8dde4;
@@ -44,7 +44,7 @@ button:focus-visible {
 .page-shell {
     flex: 1;
     width: 100%;
-    max-width: 1400px;
+    max-width: 1680px;
     align-self: center;
     display: flex;
     gap: 3.5rem;
@@ -133,6 +133,7 @@ button:focus-visible {
     display: flex;
     flex-direction: column;
     gap: 2.5rem;
+    width: 100%;
 }
 
 @media (max-width: 960px) {
