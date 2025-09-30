@@ -113,24 +113,26 @@
                             <div class="muted" id="statusTimestamp">—</div>
                         </div>
                     </div>
-                    <div class="gauge">
-                        <svg viewBox="0 0 120 120" aria-hidden="true">
-                            <circle cx="60" cy="60" r="48" fill="none" stroke="#eef2ff" stroke-width="14"></circle>
-                            <circle cx="60" cy="60" r="48" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="gaugeArc"></circle>
-                            <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
-                        </svg>
-                        <div>
-                            <div class="grade" id="grade">위급 —</div>
-                            <div class="muted">시각적 혼잡도 (현재)</div>
+                    <div class="status-overview">
+                        <div class="gauge">
+                            <svg viewBox="0 0 120 120" aria-hidden="true">
+                                <circle cx="60" cy="60" r="48" fill="none" stroke="#eef2ff" stroke-width="14"></circle>
+                                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="gaugeArc"></circle>
+                                <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
+                            </svg>
+                            <div>
+                                <div class="grade" id="grade">위급 —</div>
+                                <div class="muted">시각적 혼잡도 (현재)</div>
+                            </div>
                         </div>
-                    </div>
-                    <div class="status-summary">
                         <div class="status-current">
                             <div>
                                 <p class="status-current__label">현재 혼잡도</p>
                                 <p class="status-current__value" id="currentCongestion">0%</p>
                             </div>
                         </div>
+                    </div>
+                    <div class="status-summary">
                         <div class="status-recent" aria-label="최근 15분 추이">
                             <div class="status-recent__header">
                                 <p class="status-recent__title">최근 15분 추이</p>
