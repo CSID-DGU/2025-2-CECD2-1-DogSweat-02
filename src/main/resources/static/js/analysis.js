@@ -385,33 +385,48 @@
 
   function renderSparkline(data) {
     const svg = document.getElementById('statusSpark');
+    const deltaEl = document.getElementById('sparkDelta');
     if (!svg) return;
     const points = (data || []).filter((value) => typeof value === 'number');
     if (points.length < 2) {
       svg.innerHTML = '';
+      if (deltaEl) setDelta(deltaEl, 0);
       return;
     }
-    const width = 80;
-    const height = 32;
     const slice = points.slice(-20);
+    const container = svg.parentElement;
+    let width = 0;
+    if (container) {
+      const rect = container.getBoundingClientRect();
+      width = rect.width || 0;
+    }
+    if (!width) {
+      width = svg.clientWidth || 160;
+    }
+    width = Math.max(140, Math.round(width));
+    const height = 48;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
     const min = Math.min(...slice);
     const max = Math.max(...slice);
     const range = (max - min) || 1;
-    const step = width / (slice.length - 1);
+    const step = width / Math.max(1, (slice.length - 1));
     const coords = slice.map((value, index) => {
       const x = index * step;
-      const y = height - ((value - min) / range) * (height - 6) - 3;
+      const y = height - ((value - min) / range) * (height - 10) - 3;
       return { x, y };
     });
     const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
-    const areaPath = `M0,${height} ` + coords.map((point) => `L${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ') + ` L${width},${height} Z`;
+    const lastPoint = coords[coords.length - 1];
+    const areaPath = `M0,${height} ` + coords.map((point) => `L${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ') + ` L${lastPoint.x.toFixed(2)},${height} Z`;
     const diff = slice[slice.length - 1] - slice[0];
+    const diffPct = Math.round(diff * 100);
+    if (deltaEl) setDelta(deltaEl, diffPct);
     const stroke = diff >= 0 ? '#2563eb' : '#059669';
     const fill = diff >= 0 ? 'rgba(37, 99, 235, 0.18)' : 'rgba(5, 150, 105, 0.20)';
-    const last = coords[coords.length - 1];
     svg.innerHTML = `<path d="${areaPath}" fill="${fill}" stroke="none"/>`
       + `<path d="${line}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
-      + `<circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="2.6" fill="#ffffff" stroke="${stroke}" stroke-width="1.4"/>`;
+      + `<circle cx="${lastPoint.x.toFixed(2)}" cy="${lastPoint.y.toFixed(2)}" r="2.6" fill="#ffffff" stroke="${stroke}" stroke-width="1.4"/>`;
   }
 
   function renderSeries() {

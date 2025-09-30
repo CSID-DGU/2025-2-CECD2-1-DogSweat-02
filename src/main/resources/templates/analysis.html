@@ -130,10 +130,13 @@
                                 <p class="status-current__label">현재 혼잡도</p>
                                 <p class="status-current__value" id="currentCongestion">0%</p>
                             </div>
-                            <div class="status-current__spark">
-                                <svg id="statusSpark" viewBox="0 0 80 32" preserveAspectRatio="none"></svg>
-                                <p class="status-current__spark-caption">최근 15분 추이</p>
+                        </div>
+                        <div class="status-recent" aria-label="최근 15분 추이">
+                            <div class="status-recent__header">
+                                <p class="status-recent__title">최근 15분 추이</p>
+                                <p class="status-recent__delta"><span class="delta flat" id="sparkDelta">0p →</span></p>
                             </div>
+                            <svg id="statusSpark" aria-hidden="true"></svg>
                         </div>
                         <div class="status-compare">
                             <div class="status-compare__item">
