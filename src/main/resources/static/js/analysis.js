@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
   const $ = (selector) => document.querySelector(selector);
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const formatHMS = (seconds) => {
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
       },
       series: baseSeries,
-      heatmap: baseHeatmap
+      heatmap: baseHeatmap,
     },
     {
       id: 'cam-rotunda',
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
       },
       series: scaleSeries(baseSeries, 0.82, -0.04),
-      heatmap: scaleHeatmap(baseHeatmap, 0.85, -0.06)
+      heatmap: scaleHeatmap(baseHeatmap, 0.85, -0.06),
     },
     {
       id: 'cam-library',
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ]
       },
       series: scaleSeries(baseSeries, 0.64, -0.18),
-      heatmap: scaleHeatmap(baseHeatmap, 0.6, -0.12)
+      heatmap: scaleHeatmap(baseHeatmap, 0.6, -0.12),
     }
   ];
 
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cameras,
     current: cameras[0],
     showBBox: false,
-    showHeat: false
+    showHeat: false,
   };
 
   const selectEl = document.querySelector('[data-role="camera-select"]');
@@ -293,45 +293,48 @@ document.addEventListener('DOMContentLoaded', () => {
       mediaPoster.src = createPoster(state.current.posterAccent);
     }
     const tsEl = $('#statusTimestamp');
-    if (tsEl) {
-      tsEl.textContent = state.current.metrics.timestamp;
-    }
+    if (tsEl) tsEl.textContent = state.current.metrics.timestamp;
   }
 
   function renderKPIs() {
-    const { metrics } = state.current;
+    const { metrics, series } = state.current;
     const pct = Math.round(metrics.congestion * 100);
     const gaugeText = $('#gaugeText');
-    const gaugeArc = $('#gaugeArc');
     if (gaugeText) gaugeText.textContent = `${pct}%`;
+    const gaugeArc = $('#gaugeArc');
     if (gaugeArc) {
       const circumference = 2 * Math.PI * 48;
       gaugeArc.setAttribute('stroke-dasharray', `${circumference * metrics.congestion} ${circumference}`);
     }
+    const currentEl = $('#currentCongestion');
+    if (currentEl) currentEl.textContent = `${pct}%`;
+    renderSparkline((series || []).slice(-20));
     const gradeEl = $('#grade');
     if (gradeEl) {
       const grade = metrics.congestion >= 0.6 ? '위험' : metrics.congestion >= 0.3 ? '주의' : '안전';
       gradeEl.textContent = `위급 ${grade}`;
     }
+    const yesterdayPct = Math.round(metrics.yesterday * 100);
+    const lastWeekPct = Math.round(metrics.lastWeek * 100);
     const yesterdayEl = $('#compYesterday');
+    if (yesterdayEl) yesterdayEl.textContent = `${yesterdayPct}%`;
     const lastWeekEl = $('#compLastWeek');
-    if (yesterdayEl) yesterdayEl.textContent = `${Math.round(metrics.yesterday * 100)}%`;
-    if (lastWeekEl) lastWeekEl.textContent = `${Math.round(metrics.lastWeek * 100)}%`;
+    if (lastWeekEl) lastWeekEl.textContent = `${lastWeekPct}%`;
     const deltaYesterday = $('#deltaYesterday');
+    if (deltaYesterday) setDelta(deltaYesterday, pct - yesterdayPct);
     const deltaLastWeek = $('#deltaLastWeek');
-    if (deltaYesterday) setDelta(deltaYesterday, pct - Math.round(metrics.yesterday * 100));
-    if (deltaLastWeek) setDelta(deltaLastWeek, pct - Math.round(metrics.lastWeek * 100));
+    if (deltaLastWeek) setDelta(deltaLastWeek, pct - lastWeekPct);
     const durationEl = $('#duration');
     if (durationEl) durationEl.textContent = formatHMS(metrics.durationSec);
     const rocEl = $('#roc');
-    const accEl = $('#acc');
     if (rocEl) rocEl.textContent = metrics.roc.toFixed(1);
+    const accEl = $('#acc');
     if (accEl) accEl.textContent = metrics.acc.toFixed(1);
     const highEl = $('#allTimeHigh');
-    const ratioEl = $('#athRatio');
-    const metaEl = $('#athMeta');
     if (highEl) highEl.textContent = `${Math.round(metrics.allTimeHigh * 100)}%`;
+    const ratioEl = $('#athRatio');
     if (ratioEl) ratioEl.textContent = `${Math.round((metrics.congestion / metrics.allTimeHigh) * 100)}%`;
+    const metaEl = $('#athMeta');
     if (metaEl) metaEl.textContent = metrics.athMeta;
     const riskArc = $('#riskArc');
     if (riskArc) {
@@ -371,13 +374,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const tones = {
       normal: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46' },
       warning: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
-      alert: { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' }
+      alert: { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' },
     };
     const tone = tones[anomaly.tone] || tones.normal;
     anomalyEl.textContent = anomaly.label;
     anomalyEl.style.background = tone.bg;
     anomalyEl.style.borderColor = tone.border;
     anomalyEl.style.color = tone.color;
+  }
+
+  function renderSparkline(data) {
+    const svg = document.getElementById('statusSpark');
+    if (!svg) return;
+    const points = (data || []).filter((value) => typeof value === 'number');
+    if (points.length < 2) {
+      svg.innerHTML = '';
+      return;
+    }
+    const width = 80;
+    const height = 32;
+    const slice = points.slice(-20);
+    const min = Math.min(...slice);
+    const max = Math.max(...slice);
+    const range = (max - min) || 1;
+    const step = width / (slice.length - 1);
+    const coords = slice.map((value, index) => {
+      const x = index * step;
+      const y = height - ((value - min) / range) * (height - 6) - 3;
+      return { x, y };
+    });
+    const line = coords.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ');
+    const areaPath = `M0,${height} ` + coords.map((point) => `L${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' ') + ` L${width},${height} Z`;
+    const diff = slice[slice.length - 1] - slice[0];
+    const stroke = diff >= 0 ? '#2563eb' : '#059669';
+    const fill = diff >= 0 ? 'rgba(37, 99, 235, 0.18)' : 'rgba(5, 150, 105, 0.20)';
+    const last = coords[coords.length - 1];
+    svg.innerHTML = `<path d="${areaPath}" fill="${fill}" stroke="none"/>`
+      + `<path d="${line}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+      + `<circle cx="${last.x.toFixed(2)}" cy="${last.y.toFixed(2)}" r="2.6" fill="#ffffff" stroke="${stroke}" stroke-width="1.4"/>`;
   }
 
   function renderSeries() {
@@ -472,7 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const y = spot.y * height;
         const radius = spot.radius * Math.min(width, height);
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-        gradient.addColorStop(0, `rgba(239, 68, 68, ${0.35 + spot.intensity * 0.45})`);
+        gradient.addColorStop(0, `rgba(239, 68, 68, 0.35)`);
         gradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -482,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (state.showBBox) {
       ctx.lineWidth = 2;
-      ctx.font = '12px "Inter", system-ui, sans-serif';
+      ctx.font = '12px \"Inter\", system-ui, sans-serif';
       boxes.forEach((box) => {
         const x = box.x * width;
         const y = box.y * height;
@@ -506,21 +540,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function syncOverlayControls() {
-    if (toggleBBox) {
-      toggleBBox.classList.toggle('is-active', state.showBBox);
-    }
-    if (toggleHeat) {
-      toggleHeat.classList.toggle('is-active', state.showHeat);
-    }
+    if (toggleBBox) toggleBBox.classList.toggle('is-active', state.showBBox);
+    if (toggleHeat) toggleHeat.classList.toggle('is-active', state.showHeat);
   }
 
   function setDelta(element, diff) {
-    const value = diff > 0 ? `+${diff}` : `${diff}`;
-    element.textContent = `${value}p`;
-    let tone = '';
-    if (diff > 0) tone = 'up';
-    else if (diff < 0) tone = 'down';
+    if (!element) return;
+    let tone = 'flat';
+    let text = '0p →';
+    if (diff > 0) {
+      tone = 'up';
+      text = `+${diff}p ↑`;
+    } else if (diff < 0) {
+      tone = 'down';
+      text = `${diff}p ↓`;
+    }
+    element.textContent = text;
     element.className = `delta ${tone}`;
+    const amount = Math.abs(diff);
+    const label = tone === 'flat' ? '변화 없음' : tone === 'up' ? `현재가 ${amount}p 높습니다` : `현재가 ${amount}p 낮습니다`;
+    element.setAttribute('aria-label', label);
   }
 
   init();

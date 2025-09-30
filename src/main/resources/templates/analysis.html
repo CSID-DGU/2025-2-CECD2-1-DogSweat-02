@@ -39,7 +39,7 @@
                         </div>
                     </div>
                     <div class="media">
-                        <img id="mediaPoster" alt="라이브 프레임">
+                        <img id="mediaPoster" alt="라이브 프레임" />
                         <canvas id="overlay"></canvas>
                         <div class="overlay-controls">
                             <button class="toggle" id="toggleBBox" type="button">탐지 영역</button>
@@ -82,7 +82,7 @@
                                 <div class="muted">변화율·가속도</div>
                             </div>
                         </div>
-                        <div class="alert" id="predictiveAlert">현재는 예측 경보 없음.</div>
+                        <div class="alert" id="predictiveAlert">현재 예측 경보 없음.</div>
                     </article>
                     <article class="card h-pad">
                         <div class="card-head">
@@ -120,26 +120,48 @@
                             <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
                         </svg>
                         <div>
-                            <div class="grade" id="grade">등급 —</div>
+                            <div class="grade" id="grade">위급 —</div>
                             <div class="muted">시각적 혼잡도 (현재)</div>
                         </div>
                     </div>
-                    <div class="metrics metrics--compact">
-                        <div class="metric">
-                            <div class="sub">어제 같은 시간</div>
-                            <div><span class="k" id="compYesterday">—</span> <span class="delta" id="deltaYesterday"></span></div>
+                    <div class="status-summary">
+                        <div class="status-current">
+                            <div>
+                                <p class="status-current__label">현재 혼잡도</p>
+                                <p class="status-current__value" id="currentCongestion">0%</p>
+                            </div>
+                            <div class="status-current__spark">
+                                <svg id="statusSpark" viewBox="0 0 80 32" preserveAspectRatio="none"></svg>
+                                <p class="status-current__spark-caption">최근 15분 추이</p>
+                            </div>
                         </div>
-                        <div class="metric">
-                            <div class="sub">지난주 같은 시간</div>
-                            <div><span class="k" id="compLastWeek">—</span> <span class="delta" id="deltaLastWeek"></span></div>
+                        <div class="status-compare">
+                            <div class="status-compare__item">
+                                <p class="status-compare__title">어제 같은 시간</p>
+                                <p class="status-compare__delta"><span class="delta" id="deltaYesterday"></span></p>
+                                <p class="status-compare__ref">어제 <span id="compYesterday">—</span></p>
+                            </div>
+                            <div class="status-compare__item">
+                                <p class="status-compare__title">지난주 같은 시간</p>
+                                <p class="status-compare__delta"><span class="delta" id="deltaLastWeek"></span></p>
+                                <p class="status-compare__ref">지난주 <span id="compLastWeek">—</span></p>
+                            </div>
                         </div>
-                        <div class="metric">
-                            <div class="sub">위험 상태 지속</div>
-                            <div class="k" id="duration">00:00:00</div>
-                        </div>
-                        <div class="metric">
-                            <div class="sub">변화율 / 가속도</div>
-                            <div class="k"><span id="roc">0.0</span>%/min · <span id="acc">0.0</span>%/min²</div>
+                        <div class="status-trend">
+                            <div class="status-trend__item">
+                                <div class="status-trend__icon" aria-hidden="true">⏱</div>
+                                <div>
+                                    <p class="status-trend__label">위험 구간 지속</p>
+                                    <p class="status-trend__value" id="duration">00:00:00</p>
+                                </div>
+                            </div>
+                            <div class="status-trend__item">
+                                <div class="status-trend__icon" aria-hidden="true">↗</div>
+                                <div>
+                                    <p class="status-trend__label">변화율 · 가속도</p>
+                                    <p class="status-trend__value"><span id="roc">0.0</span>%/min · <span id="acc">0.0</span>%/min²</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </article>
@@ -177,7 +199,7 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">역대 최고치 대비 현재</div>
+                            <div class="card-title">역대 최고 대비 현재</div>
                             <div class="muted" id="athMeta">—</div>
                         </div>
                     </div>
