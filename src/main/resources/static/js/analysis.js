@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (locationEl) locationEl.textContent = camera.location;
     if (statusEl) {
       statusEl.textContent = camera.status.label;
-      statusEl.className = `chip chip--${camera.status.tone}`;
+      statusEl.className = `chip status-chip chip--${camera.status.tone}`;
     }
     if (captionEl) captionEl.textContent = camera.live.caption;
     if (selectEl) selectEl.value = camera.id;

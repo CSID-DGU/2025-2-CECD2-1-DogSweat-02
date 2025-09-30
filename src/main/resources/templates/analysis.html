@@ -15,11 +15,13 @@
         <header class="analysis-header">
             <div class="analysis-header__meta">
                 <p class="breadcrumbs">관제 &gt; 상세 분석</p>
-                <h1 class="title" data-role="camera-name">카메라 이름</h1>
+                <div class="analysis-title-row">
+                    <h1 class="title" data-role="camera-name">카메라 이름</h1>
+                    <div class="chip status-chip chip--neutral" data-role="camera-status">상태</div>
+                </div>
                 <p class="subtitle" data-role="camera-location">카메라 위치</p>
             </div>
             <div class="analysis-header__actions">
-                <div class="chip chip--neutral" data-role="camera-status">상태</div>
                 <label class="camera-selector">
                     <span>카메라 선택</span>
                     <select data-role="camera-select" aria-label="상세 분석 대상 카메라"></select>
