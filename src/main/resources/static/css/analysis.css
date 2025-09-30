@@ -1,4 +1,4 @@
-﻿.analysis-page {
+.analysis-page {
     --bg: #f6f7fb;
     --panel: #ffffff;
     --ink: #14171f;
@@ -669,4 +669,28 @@
 }
 
 
+/* Card Status Summary Redesign */
+.analysis-page .status-overview {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+}
 
+.analysis-page .status-overview .gauge {
+    flex: 1;
+    justify-content: center;
+}
+
+.analysis-page .status-overview .status-current {
+    flex: 1;
+    text-align: center;
+}
+
+/* Override existing style */
+.analysis-page .status-summary {
+    margin-top: 0;
+}
