@@ -252,15 +252,16 @@
 }
 
 .analysis-page .heat-wrap {
-    overflow: auto;
+    overflow: hidden;
 }
 
 .analysis-page .heatmap-stage {
     display: grid;
-    grid-template-columns: max-content repeat(24, var(--cell));
-    grid-template-rows: var(--hdr) repeat(7, var(--cell));
+    grid-template-columns: max-content repeat(24, minmax(0, 1fr));
+    grid-template-rows: minmax(var(--hdr), auto) repeat(7, auto);
     gap: var(--gap);
-    align-items: center;
+    align-items: stretch;
+    width: 100%;
     padding-bottom: 4px;
 }
 
@@ -268,19 +269,25 @@
     grid-column: 1;
     grid-row: 2 / span 7;
     display: grid;
-    grid-template-rows: repeat(7, var(--cell));
+    grid-template-rows: repeat(7, auto);
     row-gap: var(--gap);
     font-weight: 800;
     color: var(--ink-2);
-    text-align: right;
-    padding-right: 2px;
+    text-align: left;
+    padding-right: 0;
+}
+
+.analysis-page .days-labels > div {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 .analysis-page .time-labels {
     grid-column: 2 / span 24;
     grid-row: 1;
     display: grid;
-    grid-template-columns: repeat(24, var(--cell));
+    grid-template-columns: repeat(24, minmax(0, 1fr));
     column-gap: var(--gap);
     font-size: 11px;
     color: #6b7280;
@@ -296,14 +303,15 @@
     grid-column: 2 / span 24;
     grid-row: 2 / span 7;
     display: grid;
-    grid-template-columns: repeat(24, var(--cell));
-    grid-template-rows: repeat(7, var(--cell));
+    grid-template-columns: repeat(24, minmax(0, 1fr));
+    grid-template-rows: repeat(7, auto);
     gap: var(--gap);
 }
 
 .analysis-page .cal-cell {
-    width: var(--cell);
-    height: var(--cell);
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    height: auto;
     border: 1px solid var(--border);
     border-radius: 6px;
     background: #f3f4f6;
@@ -508,5 +516,15 @@
         height: 80px;
     }
 }
+
+
+
+
+
+
+
+
+
+
 
 
