@@ -2,82 +2,195 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
 <head>
-    <title>상세 분석 | E-N-C 안전 시스템</title>
+    <title>상세 분석 | E-N-C 캠퍼스 관제</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/analysis.css}">
-        <script th:inline="javascript">
-            /*<![CDATA[*/
-            const CAMERA_ID = /*[[${cameraId}]]*/ 'cam-01';
-            /*]]>*/
-        </script>
         <script defer th:src="@{/js/cameradata.js}"></script>
         <script defer th:src="@{/js/analysis.js}"></script>
     </th:block>
 </head>
-<body th:with="camId=${cameraId}">
-<section class="analysis-header">
-    <div class="analysis-header__meta">
-        <div>
-            <p class="analysis-header__subtitle">상세 분석</p>
-            <h1 class="analysis-header__title" data-role="camera-name">카메라 이름</h1>
-            <p class="analysis-header__location" data-role="camera-location">카메라 위치</p>
-        </div>
-        <span class="analysis-header__status" data-role="camera-status">상태</span>
-    </div>
-</section>
-
-<section class="video-stage">
-    <figure class="video-player" aria-label="선택된 카메라의 실시간 영상">
-        <div class="video-player__display">실시간 스트림 영역</div>
-        <div class="video-player__overlay" data-role="video-overlay">
-            <div class="overlay-layer" data-layer="bbox"></div>
-            <div class="overlay-layer" data-layer="roi" style="display: none;">
-                <svg width="100%" height="100%" viewBox="0 0 1600 900" preserveAspectRatio="none">
-                    <polygon points="300,800 1300,850 1200,500 800,450 400,550"/>
-                </svg>
+<body>
+<section class="analysis-page">
+    <div class="analysis-surface">
+        <header class="analysis-header">
+            <div class="analysis-header__meta">
+                <p class="breadcrumbs">관제 &gt; 상세 분석</p>
+                <h1 class="title" data-role="camera-name">카메라 이름</h1>
+                <p class="subtitle" data-role="camera-location">카메라 위치</p>
             </div>
-            <div class="overlay-layer heatmap-overlay" data-layer="heatmap" style="display: none;"></div>
-        </div>
-        <figcaption data-role="video-caption">라이브 · 00:00:00</figcaption>
-    </figure>
-    <aside class="layer-controls">
-        <h2 class="layer-controls__title">분석 레이어</h2>
-        <div class="layer-options" data-role="layer-controls">
-            <label>
-                <input type="checkbox" data-layer-toggle="bbox" checked> 객체 탐지 (Bounding Box)
-            </label>
-            <label>
-                <input type="checkbox" data-layer-toggle="roi"> 동적 ROI (활동 영역)
-            </label>
-            <label>
-                <input type="checkbox" data-layer-toggle="heatmap"> 실시간 히트맵
-            </label>
-        </div>
-    </aside>
-</section>
-
-<section class="charts-section">
-    <div class="chart-container">
-        <header class="chart-header">
-            <h2>시계열 패턴 분석</h2>
-            <div class="chart-controls" data-role="chart-controls">
-                <button class="active" data-range="today">오늘</button>
-                <button data-range="yesterday">어제</button>
-                <button data-range="average">주중 평균</button>
+            <div class="analysis-header__actions">
+                <div class="chip chip--neutral" data-role="camera-status">상태</div>
+                <label class="camera-selector">
+                    <span>카메라 선택</span>
+                    <select data-role="camera-select" aria-label="상세 분석 대상 카메라"></select>
+                </label>
             </div>
         </header>
-        <div class="chart-placeholder" data-role="chart-placeholder">
-            시계열 차트 영역 (오늘)
-        </div>
-    </div>
-    <div class="calendar-container">
-        <h2>히트맵 캘린더</h2>
-        <div class="calendar-placeholder">
-            <p>시간대별 평균 밀집도 캘린더 영역</p>
-            <p style="margin-top: 1rem; font-size: 0.9rem; color: #909090;">(수요일 점심시간대가 주기적으로 혼잡합니다)</p>
+
+        <div class="grid">
+            <div class="stack">
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">실시간 영상 &amp; AI 분석</div>
+                            <div class="muted" data-role="live-caption">RTSP/HLS · 30초 지연</div>
+                        </div>
+                    </div>
+                    <div class="media">
+                        <img id="mediaPoster" alt="라이브 프레임">
+                        <canvas id="overlay"></canvas>
+                        <div class="overlay-controls">
+                            <button class="toggle" id="toggleBBox" type="button">탐지 영역</button>
+                            <button class="toggle" id="toggleHeat" type="button">히트맵</button>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">혼잡도 추이</div>
+                            <div class="muted">최근 2시간</div>
+                        </div>
+                    </div>
+                    <div class="chart" id="seriesChart"></div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">주간 혼잡 패턴</div>
+                            <div class="muted">요일 · 시간대별</div>
+                        </div>
+                    </div>
+                    <div class="heat-wrap">
+                        <div class="heatmap-stage">
+                            <div class="days-labels" id="daysLabels"></div>
+                            <div class="calendar" id="calendar"></div>
+                            <div class="time-labels" id="timeLabels"></div>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="grid grid--split">
+                    <article class="card h-pad">
+                        <div class="card-head">
+                            <div>
+                                <div class="card-title">예측 기반 경보</div>
+                                <div class="muted">변화율·가속도</div>
+                            </div>
+                        </div>
+                        <div class="alert" id="predictiveAlert">현재는 예측 경보 없음.</div>
+                    </article>
+                    <article class="card h-pad">
+                        <div class="card-head">
+                            <div>
+                                <div class="card-title">알림 이력</div>
+                                <div class="muted">최근 10건</div>
+                            </div>
+                        </div>
+                        <table id="alertTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col">시각</th>
+                                    <th scope="col">유형</th>
+                                    <th scope="col">메시지</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </article>
+                </div>
+            </div>
+
+            <div class="stack stack--aside">
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">현재 상태 요약</div>
+                            <div class="muted" id="statusTimestamp">—</div>
+                        </div>
+                    </div>
+                    <div class="gauge">
+                        <svg viewBox="0 0 120 120" aria-hidden="true">
+                            <circle cx="60" cy="60" r="48" fill="none" stroke="#eef2ff" stroke-width="14"></circle>
+                            <circle cx="60" cy="60" r="48" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="gaugeArc"></circle>
+                            <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
+                        </svg>
+                        <div>
+                            <div class="grade" id="grade">등급 —</div>
+                            <div class="muted">시각적 혼잡도 (현재)</div>
+                        </div>
+                    </div>
+                    <div class="metrics metrics--compact">
+                        <div class="metric">
+                            <div class="sub">어제 같은 시간</div>
+                            <div><span class="k" id="compYesterday">—</span> <span class="delta" id="deltaYesterday"></span></div>
+                        </div>
+                        <div class="metric">
+                            <div class="sub">지난주 같은 시간</div>
+                            <div><span class="k" id="compLastWeek">—</span> <span class="delta" id="deltaLastWeek"></span></div>
+                        </div>
+                        <div class="metric">
+                            <div class="sub">위험 상태 지속</div>
+                            <div class="k" id="duration">00:00:00</div>
+                        </div>
+                        <div class="metric">
+                            <div class="sub">변화율 / 가속도</div>
+                            <div class="k"><span id="roc">0.0</span>%/min · <span id="acc">0.0</span>%/min²</div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">이상 패턴 탐지</div>
+                            <div class="muted">정상 범위 대비</div>
+                        </div>
+                    </div>
+                    <div id="anomaly" class="btn btn--pill">정상 범위</div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">통합 위험도 지수</div>
+                            <div class="muted">0–100 스케일</div>
+                        </div>
+                    </div>
+                    <div class="gauge">
+                        <svg viewBox="0 0 120 120" aria-hidden="true">
+                            <circle cx="60" cy="60" r="48" fill="none" stroke="#f3f4f6" stroke-width="14"></circle>
+                            <circle cx="60" cy="60" r="48" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="riskArc"></circle>
+                            <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="riskText">0</text>
+                        </svg>
+                        <div>
+                            <div class="grade" id="riskGrade">안정</div>
+                            <div class="muted" id="riskMeta">밀집도·변화율·가속도·지속·이상치 반영</div>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">역대 최고치 대비 현재</div>
+                            <div class="muted" id="athMeta">—</div>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="sub">역대 최고치</div>
+                        <div class="k" id="allTimeHigh">—</div>
+                    </div>
+                    <div class="metric metric--spaced">
+                        <div class="sub">현재 대비 비율</div>
+                        <div class="k" id="athRatio">—</div>
+                    </div>
+                </article>
+            </div>
         </div>
     </div>
 </section>
-
 </body>
 </html>
