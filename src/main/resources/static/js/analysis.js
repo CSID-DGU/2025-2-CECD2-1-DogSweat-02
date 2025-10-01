@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
   const $ = (selector) => document.querySelector(selector);
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
   const formatHMS = (seconds) => {
@@ -102,7 +102,7 @@
         allTimeHigh: 0.87,
         athMeta: '최고 기록 대비 9%p 여유',
         predictiveAlert: '경고: 동측 출입로 혼잡 증가세 감지 (혼잡도 68%, 가속도 +1.2)',
-        anomaly: { tone: 'warning', label: '주의 범위' },
+        anomaly: { normalMin: 0.45, normalMax: 0.60 },
         riskIndex: 78,
         riskGrade: '경고',
         riskMeta: '밀집도 68% · 변동률 +2.9 · 가속도 +1.2 · 위험 지속 00:19:24',
@@ -147,7 +147,7 @@
         allTimeHigh: 0.81,
         athMeta: '사상 최고치 대비 27%p 감소',
         predictiveAlert: '주의: 차량 진입 증가로 혼잡도 상승 예상 (혼잡도 54%)',
-        anomaly: { tone: 'normal', label: '정상 범위' },
+        anomaly: { normalMin: 0.40, normalMax: 0.55 },
         riskIndex: 58,
         riskGrade: '주의',
         riskMeta: '밀집도 54% · 변동률 +1.6 · 가속도 +0.6 · 위험 지속 00:13:24',
@@ -190,7 +190,7 @@
         allTimeHigh: 0.62,
         athMeta: '최고 기록 대비 31%p 여유',
         predictiveAlert: '',
-        anomaly: { tone: 'normal', label: '정상 범위' },
+        anomaly: { normalMin: 0.25, normalMax: 0.40 },
         riskIndex: 32,
         riskGrade: '안정',
         riskMeta: '밀집도 31% · 변동률 -0.4 · 가속도 -0.2 · 위험 지속 00:03:36',
@@ -336,6 +336,7 @@
     if (ratioEl) ratioEl.textContent = `${Math.round((metrics.congestion / metrics.allTimeHigh) * 100)}%`;
     const metaEl = $('#athMeta');
     if (metaEl) metaEl.textContent = metrics.athMeta;
+    
     const riskArc = $('#riskArc');
     if (riskArc) {
       const circumference = 2 * Math.PI * 48;
@@ -343,10 +344,69 @@
     }
     const riskText = $('#riskText');
     if (riskText) riskText.textContent = String(Math.round(metrics.riskIndex));
+    
     const riskGrade = $('#riskGrade');
-    if (riskGrade) riskGrade.textContent = metrics.riskGrade;
-    const riskMeta = $('#riskMeta');
-    if (riskMeta) riskMeta.textContent = metrics.riskMeta;
+    if (riskGrade) {
+        riskGrade.textContent = metrics.riskGrade;
+        let tone = 'normal';
+        if (metrics.riskGrade === '경고' || metrics.riskGrade === '위험') {
+            tone = 'danger';
+        } else if (metrics.riskGrade === '주의') {
+            tone = 'warning';
+        }
+        riskGrade.className = `grade grade--${tone}`;
+    }
+
+    // --- New Risk Factors Logic ---
+    // 1. Congestion
+    const factorCongestionVal = document.querySelector('#factorCongestion .factor-value');
+    const factorCongestionStatus = document.querySelector('#factorCongestion .factor-status');
+    if (factorCongestionVal) factorCongestionVal.textContent = `${Math.round(metrics.congestion * 100)}%`;
+    if (factorCongestionStatus) {
+        let status, tone;
+        if (metrics.congestion >= 0.6) { status = '높음'; tone = 'high'; }
+        else if (metrics.congestion >= 0.3) { status = '주의'; tone = 'warn'; }
+        else { status = '낮음'; tone = 'normal'; }
+        factorCongestionStatus.textContent = status;
+        factorCongestionStatus.className = `factor-status ${tone}`;
+    }
+
+    // 2. Rate of Change (ROC)
+    const factorRocVal = document.querySelector('#factorRoc .factor-value');
+    const factorRocStatus = document.querySelector('#factorRoc .factor-status');
+    if (factorRocVal) factorRocVal.textContent = `${metrics.roc > 0 ? '+' : ''}${metrics.roc.toFixed(1)}%`;
+    if (factorRocStatus) {
+        let status, tone;
+        if (metrics.roc > 1.0) { status = '증가'; tone = 'increasing'; }
+        else if (metrics.roc < -1.0) { status = '감소'; tone = 'decreasing'; }
+        else { status = '안정'; tone = 'stable'; }
+        factorRocStatus.textContent = status;
+        factorRocStatus.className = `factor-status ${tone}`;
+    }
+
+    // 3. Duration
+    const factorDurationVal = document.querySelector('#factorDuration .factor-value');
+    const factorDurationStatus = document.querySelector('#factorDuration .factor-status');
+    if (factorDurationVal) factorDurationVal.textContent = formatHMS(metrics.durationSec);
+    if (factorDurationStatus) {
+        let status, tone;
+        if (metrics.durationSec > 1800) { status = '김'; tone = 'long'; } // 30 mins
+        else if (metrics.durationSec > 600) { status = '보통'; tone = 'warn'; } // 10 mins
+        else { status = '짧음'; tone = 'normal'; }
+        factorDurationStatus.textContent = status;
+        factorDurationStatus.className = `factor-status ${tone}`;
+    }
+
+    // 4. Anomaly
+    const factorAnomalyStatus = document.querySelector('#factorAnomaly .factor-status');
+    if (factorAnomalyStatus) {
+        const isAnomaly = metrics.congestion < metrics.anomaly.normalMin || metrics.congestion > metrics.anomaly.normalMax;
+        let status, tone;
+        if (isAnomaly) { status = '감지됨'; tone = 'detected'; }
+        else { status = '해당 없음'; tone = 'normal'; }
+        factorAnomalyStatus.textContent = status;
+        factorAnomalyStatus.className = `factor-status ${tone}`;
+    }
   }
 
   function renderAlerts() {
@@ -368,19 +428,53 @@
   }
 
   function renderAnomaly() {
-    const { anomaly } = state.current.metrics;
-    const anomalyEl = $('#anomaly');
-    if (!anomalyEl) return;
-    const tones = {
-      normal: { bg: '#ecfdf5', border: '#a7f3d0', color: '#065f46' },
-      warning: { bg: '#fff7ed', border: '#fed7aa', color: '#9a3412' },
-      alert: { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' },
-    };
-    const tone = tones[anomaly.tone] || tones.normal;
-    anomalyEl.textContent = anomaly.label;
-    anomalyEl.style.background = tone.bg;
-    anomalyEl.style.borderColor = tone.border;
-    anomalyEl.style.color = tone.color;
+    const { congestion, anomaly } = state.current.metrics;
+    if (!anomaly) return;
+
+    const statusEl = $('#anomalyStatus');
+    const rangeEl = $('#anomalyRange');
+    const valueEl = $('#anomalyValue');
+    const currentValEl = $('#anomalyCurrentVal');
+    const normalRangeEl = $('#anomalyNormalRange');
+    const deviationEl = $('#anomalyDeviation');
+
+    if (!statusEl || !rangeEl || !valueEl || !currentValEl || !normalRangeEl || !deviationEl) return;
+
+    const { normalMin, normalMax } = anomaly;
+    const isAnomaly = congestion < normalMin || congestion > normalMax;
+
+    // 1. Update Status Chip
+    const status = isAnomaly ? (congestion > normalMax ? '높음' : '낮음') : '정상';
+    const tone = isAnomaly ? 'danger' : 'neutral';
+    statusEl.textContent = status;
+    statusEl.className = `chip chip--${tone}`;
+
+    // 2. Update Bullet Graph
+    const rangeLeft = normalMin * 100;
+    const rangeWidth = (normalMax - normalMin) * 100;
+    rangeEl.style.left = `${rangeLeft}%`;
+    rangeEl.style.width = `${rangeWidth}%`;
+
+    const valueLeft = congestion * 100;
+    valueEl.style.left = `calc(${valueLeft}% - 2px)`; // center the 4px marker
+    valueEl.classList.toggle('is-anomaly', isAnomaly);
+
+    // 3. Update Text Details
+    currentValEl.textContent = `${Math.round(congestion * 100)}%`;
+    normalRangeEl.textContent = `${Math.round(normalMin * 100)}% ~ ${Math.round(normalMax * 100)}%`;
+
+    if (isAnomaly) {
+        const diff = congestion > normalMax 
+            ? congestion - normalMax 
+            : normalMin - congestion;
+        const diffPct = Math.round(diff * 100);
+        const direction = congestion > normalMax ? '높음' : '낮음';
+        deviationEl.textContent = `정상 범위보다 ${diffPct}%p ${direction}`;
+        deviationEl.classList.add('is-anomaly');
+    } else {
+        deviationEl.textContent = '정상 범위 내에 있습니다.';
+        deviationEl.classList.remove('is-anomaly');
+    }
   }
 
   function renderSparkline(data) {
@@ -531,7 +625,7 @@
     }
     if (state.showBBox) {
       ctx.lineWidth = 2;
-      ctx.font = '12px \"Inter\", system-ui, sans-serif';
+      ctx.font = '12px "Inter", system-ui, sans-serif';
       boxes.forEach((box) => {
         const x = box.x * width;
         const y = box.y * height;

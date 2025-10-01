@@ -177,8 +177,18 @@
                             <div class="card-title">이상 패턴 탐지</div>
                             <div class="muted">정상 범위 대비</div>
                         </div>
+                        <div id="anomalyStatus" class="chip chip--neutral">—</div>
                     </div>
-                    <div id="anomaly" class="btn btn--pill">정상 범위</div>
+                    <div class="anomaly-display">
+                        <div class="anomaly-graph">
+                            <div id="anomalyRange" class="anomaly-graph__range"></div>
+                            <div id="anomalyValue" class="anomaly-graph__value"></div>
+                        </div>
+                        <div class="anomaly-details">
+                            <p id="anomalyInfo" class="anomaly-details__info">현재 값 <strong id="anomalyCurrentVal">—</strong> (정상 <span id="anomalyNormalRange">—</span>)</p>
+                            <p id="anomalyDeviation" class="anomaly-details__deviation">데이터 로딩 중...</p>
+                        </div>
+                    </div>
                 </article>
 
                 <article class="card h-pad">
@@ -194,9 +204,29 @@
                             <circle cx="60" cy="60" r="48" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="riskArc"></circle>
                             <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="riskText">0</text>
                         </svg>
-                        <div>
-                            <div class="grade" id="riskGrade">안정</div>
-                            <div class="muted" id="riskMeta">밀집도·변화율·가속도·지속·이상치 반영</div>
+                        <div class="risk-details">
+                            <div class="grade" id="riskGrade">--</div>
+                            <ul class="risk-factors">
+                                <li id="factorCongestion">
+                                    <span class="factor-label">밀집도</span>
+                                    <span class="factor-value">--%</span>
+                                    <span class="factor-status">--</span>
+                                </li>
+                                <li id="factorRoc">
+                                    <span class="factor-label">변화율</span>
+                                    <span class="factor-value">--</span>
+                                    <span class="factor-status">--</span>
+                                </li>
+                                <li id="factorDuration">
+                                    <span class="factor-label">위험 지속</span>
+                                    <span class="factor-value">--:--:--</span>
+                                    <span class="factor-status">--</span>
+                                </li>
+                                <li id="factorAnomaly">
+                                    <span class="factor-label">이상 패턴</span>
+                                    <span class="factor-status">--</span>
+                                </li>
+                            </ul>
                         </div>
                     </div>
                 </article>
