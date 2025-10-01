@@ -694,3 +694,170 @@
 .analysis-page .status-summary {
     margin-top: 0;
 }
+
+/* Anomaly Detection Panel Redesign */
+.analysis-page .anomaly-display {
+    margin-top: 12px;
+}
+
+.analysis-page .anomaly-graph {
+    position: relative;
+    width: 100%;
+    height: 24px;
+    background: #f3f4f6;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.analysis-page .anomaly-graph__range {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: #e5e7eb; /* Normal range color */
+    border-radius: 6px;
+}
+
+.analysis-page .anomaly-graph__value {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 20px;
+    background: var(--brand); /* Current value marker color */
+    border-radius: 4px;
+    border: 1px solid #ffffff;
+    box-shadow: 0 0 4px rgba(0,0,0,0.2);
+}
+
+.analysis-page .anomaly-graph__value.is-anomaly {
+    background: var(--risk); /* Anomaly color */
+}
+
+.analysis-page .anomaly-details {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.analysis-page .anomaly-details__info {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.analysis-page .anomaly-details__info strong {
+    color: var(--ink);
+    font-weight: 800;
+}
+
+.analysis-page .anomaly-details__deviation {
+    margin: 4px 0 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.analysis-page .anomaly-details__deviation.is-anomaly {
+    color: #b91c1c; /* Anomaly text color */
+}
+
+/* Adjust card header for the new chip */
+.analysis-page .card-head .chip {
+    flex-shrink: 0;
+}
+
+/* Risk Index Panel Redesign */
+.analysis-page .risk-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.analysis-page .risk-factors {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--border);
+    display: grid;
+    gap: 10px;
+}
+
+.analysis-page .risk-factors li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.analysis-page .factor-label {
+    color: var(--ink-2);
+}
+
+.analysis-page .factor-value {
+    font-weight: 700;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    padding: 0 8px;
+}
+
+.analysis-page .factor-status {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #ffffff;
+    background: var(--muted);
+    text-align: center;
+    min-width: 48px;
+}
+
+.analysis-page .factor-status.high,
+.analysis-page .factor-status.increasing,
+.analysis-page .factor-status.long,
+.analysis-page .factor-status.detected {
+    background: #dc2626; /* Red for high risk factors */
+    color: #ffffff;
+}
+
+.analysis-page .factor-status.warn {
+    background: #f59e0b; /* Amber for warning */
+    color: #ffffff;
+}
+
+.analysis-page .factor-status.normal,
+.analysis-page .factor-status.stable {
+    background: #e5e7eb;
+    color: var(--ink-2);
+}
+
+.analysis-page .factor-status.decreasing {
+    background: #16a34a; /* Green for decreasing */
+    color: #ffffff;
+}
+
+/* Risk Grade Badge Style */
+.analysis-page .grade {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.analysis-page .grade--danger {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+}
+
+.analysis-page .grade--warning {
+    background-color: rgba(245, 158, 11, 0.1);
+    color: #b45309;
+}
+
+.analysis-page .grade--normal {
+    background-color: rgba(22, 163, 74, 0.1);
+    color: #14532d;
+}
