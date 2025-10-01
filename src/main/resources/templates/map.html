@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
+<head>
+    <title>지도 기반 모니터링 | E-N-C 캠퍼스 관제</title>
+    <th:block th:fragment="headResources">
+        <link rel="stylesheet" th:href="@{/css/map.css}">
+        <script defer th:src="@{/js/cameradata.js}"></script>
+        <script defer th:src="@{/js/map.js}"></script>
+    </th:block>
+</head>
+<body>
+<section class="map-page">
+    <div class="map-surface">
+        <header class="map-header">
+            <div class="map-header__meta">
+                <p class="breadcrumbs">관제 &gt; 지도</p>
+                <h1 class="title">지도 기반 모니터링</h1>
+            </div>
+            <p class="subtitle">캠퍼스 지도에서 전체 CCTV의 위치와 실시간 위험도를 한눈에 파악합니다.</p>
+        </header>
+
+        <div class="map-grid">
+            <main class="map-container" id="mapContainer">
+                <!-- 지도가 여기에 표시됩니다 -->
+                <div class="map-placeholder">
+                    <img th:src="@{/images/campus_map_placeholder.png}" alt="캠퍼스 지도" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
+                    <div class="map-overlay-text">지도 연동 예정</div>
+                </div>
+                <div id="markerContainer">
+                    <!-- JS를 통해 CCTV 마커가 여기에 추가됩니다 -->
+                </div>
+            </main>
+
+            <aside class="map-sidebar">
+                <div class="sidebar-content">
+                    <div class="filter-group">
+                        <h2 class="sidebar-title">필터</h2>
+                        <div class="filter-buttons">
+                            <button class="filter-btn is-active" data-filter="all">전체</button>
+                            <button class="filter-btn" data-filter="danger">위험</button>
+                            <button class="filter-btn" data-filter="warning">주의</button>
+                            <button class="filter-btn" data-filter="normal">정상</button>
+                        </div>
+                    </div>
+
+                    <div class="camera-list-panel">
+                        <h2 class="sidebar-title">카메라 목록</h2>
+                        <div class="list-summary" id="listSummary">총 0대</div>
+                        <ul class="camera-list" id="cameraList">
+                            <!-- JS를 통해 카메라 목록이 여기에 추가됩니다 -->
+                        </ul>
+                    </div>
+
+                    <div class="info-panel" id="infoPanel" hidden>
+                        <button class="info-panel__close" id="infoPanelClose" aria-label="닫기">&times;</button>
+                        <div class="info-panel__video">
+                            <img src="#" alt="카메라 썸네일" id="infoPanelImage">
+                        </div>
+                        <div class="info-panel__details">
+                            <h3 id="infoPanelName">카메라 이름</h3>
+                            <p class="info-panel__location" id="infoPanelLocation">위치</p>
+                            <div class="info-panel__status">
+                                <p>현재 혼잡도: <strong id="infoPanelCongestion">0%</strong></p>
+                                <span class="chip" id="infoPanelChip">상태</span>
+                            </div>
+                            <a href="#" class="info-panel__link" id="infoPanelLink">상세 분석 보기 &rarr;</a>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</section>
+</body>
+</html>

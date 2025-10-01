@@ -14,8 +14,17 @@ public class WebController {
     }
 
     @GetMapping("/analysis")
-    public String analysis(@RequestParam(required = false, defaultValue = "cam-01") String id, Model model) {
-        model.addAttribute("cameraId", id);
+    public String analysisPage() {
         return "analysis";
+    }
+
+    @GetMapping("/map")
+    public String mapPage() {
+        return "map";
+    }
+
+    @GetMapping("/alerts")
+    public String alertsPage() {
+        return "alerts";
     }
 }
