@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const itemsPerPage = 15;
     let sortColumn = 'timestamp';
     let sortDirection = 'desc';
+    let dateRange = { start: null, end: null };
 
     // 카메라 필터 옵션 채우기
     function populateCameraFilter() {
@@ -79,13 +80,17 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateView() {
         // 1. 필터링
         let filteredAlerts = mockAlerts.filter(alert => {
+            const alertDate = new Date(alert.timestamp);
+            const dateMatch = (!dateRange.start || alertDate >= dateRange.start) && 
+                              (!dateRange.end || alertDate <= dateRange.end);
+
             const levelMatch = levelFilter.value === 'all' || alert.level === levelFilter.value;
             const cameraMatch = cameraFilter.value === 'all' || alert.cameraId == cameraFilter.value;
             const searchMatch = !searchFilter.value || 
                                 alert.cameraName.includes(searchFilter.value) || 
                                 alert.location.includes(searchFilter.value) ||
                                 alert.details.includes(searchFilter.value);
-            return levelMatch && cameraMatch && searchMatch;
+            return dateMatch && levelMatch && cameraMatch && searchMatch;
         });
 
         // 2. 정렬
@@ -147,6 +152,28 @@ document.addEventListener('DOMContentLoaded', () => {
     // 초기화
     populateCameraFilter();
     updateView();
+
+    flatpickr("#dateRange", {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        altInput: true,
+        altFormat: "Y년 m월 d일",
+        locale: "ko", // 한글 지원
+        onChange: function(selectedDates) {
+            if (selectedDates.length === 2) {
+                dateRange.start = selectedDates[0];
+                dateRange.end = selectedDates[1];
+                // 시간까지 포함하여 정확한 범위 설정
+                dateRange.start.setHours(0, 0, 0, 0);
+                dateRange.end.setHours(23, 59, 59, 999);
+            } else {
+                dateRange.start = null;
+                dateRange.end = null;
+            }
+            currentPage = 1;
+            updateView();
+        }
+    });
 });
 
 // 목업 데이터 생성 함수
