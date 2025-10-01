@@ -65,120 +65,121 @@
             </div>
         </section>
 
-        <section class="camera-rotation" data-role="camera-rotation">
-            <div class="camera-stage" data-role="camera-stage">
-                <header class="camera-stage__header">
-                    <div>
-                        <p class="camera-stage__label">카메라</p>
-                        <h2 data-role="camera-name"><a th:href="@{/analysis}" style="text-decoration: none; color: inherit;">학생회관 3층 복도</a></h2>
-                        <p class="camera-stage__location" data-role="camera-location">건물 A · 존 3F</p>
+        <div class="dashboard-grid">
+            <main class="dashboard-main">
+                <section class="camera-stage" data-role="camera-stage">
+                    <header class="camera-stage__header">
+                        <div>
+                            <p class="camera-stage__label">카메라</p>
+                            <h2 data-role="camera-name"><a th:href="@{/analysis}" style="text-decoration: none; color: inherit;">학생회관 3층 복도</a></h2>
+                            <p class="camera-stage__location" data-role="camera-location">건물 A · 존 3F</p>
+                        </div>
+                        <span class="camera-stage__status" data-role="camera-status">위험</span>
+                    </header>
+                    <div class="camera-stage__feeds">
+                        <figure class="camera-view camera-view--live" aria-label="실시간 영상">
+                            <div class="camera-view__display" data-role="live-display">실시간 스트림</div>
+                            <div class="camera-view__overlay" data-role="live-overlay"></div>
+                            <figcaption data-role="live-caption">라이브 · 14:32:18</figcaption>
+                        </figure>
+                        <figure class="camera-view camera-view--snapshot" aria-label="AI 스냅샷">
+                            <div class="camera-view__display" data-role="snapshot-display">AI 분석 스냅샷</div>
+                            <div class="camera-view__overlay" data-role="snapshot-overlay"></div>
+                            <figcaption data-role="snapshot-caption">14:32:00 캡처 · 30초마다 갱신</figcaption>
+                        </figure>
                     </div>
-                    <span class="camera-stage__status" data-role="camera-status">위험</span>
-                </header>
-                <div class="camera-stage__feeds">
-                    <figure class="camera-view camera-view--live" aria-label="실시간 영상">
-                        <div class="camera-view__display" data-role="live-display">실시간 스트림</div>
-                        <div class="camera-view__overlay" data-role="live-overlay"></div>
-                        <figcaption data-role="live-caption">라이브 · 14:32:18</figcaption>
-                    </figure>
-                    <figure class="camera-view camera-view--snapshot" aria-label="AI 스냅샷">
-                        <div class="camera-view__display" data-role="snapshot-display">AI 분석 스냅샷</div>
-                        <div class="camera-view__overlay" data-role="snapshot-overlay"></div>
-                        <figcaption data-role="snapshot-caption">14:32:00 캡처 · 30초마다 갱신</figcaption>
-                    </figure>
-                </div>
-            </div>
-            <aside class="camera-info" data-role="camera-info">
-                <div class="camera-info__group">
-                    <dl class="camera-metrics">
-                        <div><dt>밀집도</dt><dd data-role="metric-density">0.78</dd></div>
-                        <div><dt>변화율</dt><dd data-role="metric-change" class="positive">+6%/분</dd></div>
-                        <div><dt>가속도</dt><dd data-role="metric-accel" class="positive">+2%/분²</dd></div>
-                        <div><dt>위험 지속</dt><dd data-role="metric-duration">00:04:12</dd></div>
-                    </dl>
-                    <div class="camera-tags" data-role="camera-tags">
-                        <span class="chip chip--warning">피크 타임</span>
-                        <span class="chip chip--ai">AI 감지 12건</span>
+                </section>
+                <article class="alerts-panel alerts-panel--wide" aria-labelledby="alerts-title">
+                    <div class="alerts-panel__header">
+                        <h2 id="alerts-title">최신 알림</h2>
+                        <p class="alerts-panel__summary">최근 30분 38건 · 심각 5 · 주의 12</p>
                     </div>
-                </div>
-                <div class="camera-info__group">
-                    <p class="camera-info__message" data-role="camera-message">주출입구 혼잡 · 보안팀 확인 필요</p>
-                    <div class="camera-info__timeline">
-                        <h3>최근 스냅샷 타임라인</h3>
-                        <ol data-role="camera-timeline">
-                            <li><time>14:32:00</time> 밀집도 0.78 · 위험 지속 4분</li>
-                            <li><time>14:31:30</time> 입장 대기열 20명 감지</li>
-                            <li><time>14:31:00</time> 이동 속도 감소</li>
-                        </ol>
+                    <ul class="alerts-list" data-role="alerts-list">
+                        <li class="alerts-item alerts-item--high">
+                            <time>14:31:44</time>
+                            <div>
+                                <p>학생회관 3층 복도</p>
+                                <span>밀집도 0.78 · 위험 지속 4분</span>
+                            </div>
+                        </li>
+                        <li class="alerts-item alerts-item--medium">
+                            <time>14:30:58</time>
+                            <div>
+                                <p>체육관 서문</p>
+                                <span>입장 대기열 증가</span>
+                            </div>
+                        </li>
+                        <li class="alerts-item alerts-item--high">
+                            <time>14:28:12</time>
+                            <div>
+                                <p>중앙광장 분수대</p>
+                                <span>군중 급격 증가</span>
+                            </div>
+                        </li>
+                        <li class="alerts-item alerts-item--low">
+                            <time>14:27:05</time>
+                            <div>
+                                <p>생활관 2동 로비</p>
+                                <span>야간 통행 정상</span>
+                            </div>
+                        </li>
+                        <li class="alerts-item alerts-item--medium">
+                            <time>14:25:41</time>
+                            <div>
+                                <p>공학관 B1 로비</p>
+                                <span>강의 종료 인파 이동</span>
+                            </div>
+                        </li>
+                    </ul>
+                </article>
+            </main>
+            <aside class="dashboard-sidebar">
+                <section class="camera-info" data-role="camera-info">
+                    <div class="camera-info__group">
+                        <dl class="camera-metrics">
+                            <div><dt>밀집도</dt><dd data-role="metric-density">0.78</dd></div>
+                            <div><dt>변화율</dt><dd data-role="metric-change" class="positive">+6%/분</dd></div>
+                            <div><dt>가속도</dt><dd data-role="metric-accel" class="positive">+2%/분²</dd></div>
+                            <div><dt>위험 지속</dt><dd data-role="metric-duration">00:04:12</dd></div>
+                        </dl>
+                        <div class="camera-tags" data-role="camera-tags">
+                            <span class="chip chip--warning">피크 타임</span>
+                            <span class="chip chip--ai">AI 감지 12건</span>
+                        </div>
                     </div>
-                </div>
-                <div class="camera-list-panel">
-                    <h2 class="camera-list-panel__title">전체 카메라</h2>
-                    <ul class="camera-list" data-role="camera-list">
+                    <div class="camera-info__group">
+                        <p class="camera-info__message" data-role="camera-message">주출입구 혼잡 · 보안팀 확인 필요</p>
+                        <div class="camera-info__timeline">
+                            <h3>최근 스냅샷 타임라인</h3>
+                            <ol data-role="camera-timeline">
+                                <li><time>14:32:00</time> 밀집도 0.78 · 위험 지속 4분</li>
+                                <li><time>14:31:30</time> 입장 대기열 20명 감지</li>
+                                <li><time>14:31:00</time> 이동 속도 감소</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="camera-list-panel">
+                        <h2 class="camera-list-panel__title">전체 카메라</h2>
+                        <ul class="camera-list" data-role="camera-list">
                         </ul>
-                </div>
+                    </div>
+                </section>
+                <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
+                    <h2 id="trend-title">시간대별 경보 추이</h2>
+                    <div class="alert-trend__bars" aria-hidden="true">
+                        <span style="--height:35%"></span>
+                        <span style="--height:42%"></span>
+                        <span style="--height:48%"></span>
+                        <span style="--height:62%"></span>
+                        <span style="--height:70%"></span>
+                        <span style="--height:52%"></span>
+                        <span style="--height:38%"></span>
+                        <span style="--height:30%"></span>
+                    </div>
+                    <p class="alert-trend__note">14시대 최고치 · 16시 이후 완만 하락 예상</p>
+                </article>
             </aside>
-        </section>
-
-        <section class="support-panels support-panels--wide">
-            <article class="alerts-panel alerts-panel--wide" aria-labelledby="alerts-title">
-                <div class="alerts-panel__header">
-                    <h2 id="alerts-title">최신 알림</h2>
-                    <p class="alerts-panel__summary">최근 30분 38건 · 심각 5 · 주의 12</p>
-                </div>
-                <ul class="alerts-list" data-role="alerts-list">
-                    <li class="alerts-item alerts-item--high">
-                        <time>14:31:44</time>
-                        <div>
-                            <p>학생회관 3층 복도</p>
-                            <span>밀집도 0.78 · 위험 지속 4분</span>
-                        </div>
-                    </li>
-                    <li class="alerts-item alerts-item--medium">
-                        <time>14:30:58</time>
-                        <div>
-                            <p>체육관 서문</p>
-                            <span>입장 대기열 증가</span>
-                        </div>
-                    </li>
-                    <li class="alerts-item alerts-item--high">
-                        <time>14:28:12</time>
-                        <div>
-                            <p>중앙광장 분수대</p>
-                            <span>군중 급격 증가</span>
-                        </div>
-                    </li>
-                    <li class="alerts-item alerts-item--low">
-                        <time>14:27:05</time>
-                        <div>
-                            <p>생활관 2동 로비</p>
-                            <span>야간 통행 정상</span>
-                        </div>
-                    </li>
-                    <li class="alerts-item alerts-item--medium">
-                        <time>14:25:41</time>
-                        <div>
-                            <p>공학관 B1 로비</p>
-                            <span>강의 종료 인파 이동</span>
-                        </div>
-                    </li>
-                </ul>
-            </article>
-            <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
-                <h2 id="trend-title">시간대별 경보 추이</h2>
-                <div class="alert-trend__bars" aria-hidden="true">
-                    <span style="--height:35%"></span>
-                    <span style="--height:42%"></span>
-                    <span style="--height:48%"></span>
-                    <span style="--height:62%"></span>
-                    <span style="--height:70%"></span>
-                    <span style="--height:52%"></span>
-                    <span style="--height:38%"></span>
-                    <span style="--height:30%"></span>
-                </div>
-                <p class="alert-trend__note">14시대 최고치 · 16시 이후 완만 하락 예상</p>
-            </article>
-        </section>
+        </div>
     </div>
 </section>
 </body>
