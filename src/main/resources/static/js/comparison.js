@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hotspotList = document.getElementById('hotspotList');
     const volatilityList = document.getElementById('volatilityList');
     const chartLegend = document.getElementById('chartLegend');
-    const masterCheckbox = document.getElementById('masterCheckbox');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
 
     let comparisonChart = null;
     const chartColors = ['#0f62fe', '#ff7c00', '#16a34a', '#ef4444', '#6366f1', '#f59e0b', '#8b5cf6'];
@@ -125,44 +126,16 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
     }
 
-    function updateMasterCheckboxState() {
-        const checkboxes = document.querySelectorAll('#cameraChecklist input[type="checkbox"]');
-        const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-
-        if (checkboxes.length === 0) {
-            masterCheckbox.checked = false;
-            masterCheckbox.indeterminate = false;
-            return;
-        }
-
-        if (checkedCount === 0) {
-            masterCheckbox.checked = false;
-            masterCheckbox.indeterminate = false;
-        } else if (checkedCount === checkboxes.length) {
-            masterCheckbox.checked = true;
-            masterCheckbox.indeterminate = false;
-        } else {
-            masterCheckbox.checked = false;
-            masterCheckbox.indeterminate = true;
-        }
-    }
-
     // 4. 이벤트 리스너
-    cameraSearch.addEventListener('input', (e) => {
-        renderCameraList(e.target.value);
-        updateMasterCheckboxState(); // 검색 결과가 바뀌면 마스터 체크박스 상태도 업데이트
-    });
+    cameraSearch.addEventListener('input', (e) => renderCameraList(e.target.value));
     runAnalysisBtn.addEventListener('click', renderChart);
 
-    masterCheckbox.addEventListener('change', () => {
-        const isChecked = masterCheckbox.checked;
-        document.querySelectorAll('#cameraChecklist input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+    selectAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('#cameraChecklist input[type="checkbox"]').forEach(cb => cb.checked = true);
     });
 
-    cameraChecklist.addEventListener('change', (e) => {
-        if (e.target.type === 'checkbox') {
-            updateMasterCheckboxState();
-        }
+    deselectAllBtn.addEventListener('click', () => {
+        document.querySelectorAll('#cameraChecklist input[type="checkbox"]').forEach(cb => cb.checked = false);
     });
 
     // 초기화

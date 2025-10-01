@@ -24,15 +24,15 @@
         <div class="comparison-grid">
             <aside class="control-panel">
                 <div class="control-section">
-                    <h2 class="control-title">비교 대상 카메라</h2>
+                    <div class="control-header">
+                        <h2 class="control-title">비교 대상 카메라</h2>
+                        <div class="checklist-actions">
+                            <button class="checklist-btn" id="selectAllBtn">전체 선택</button>
+                            <button class="checklist-btn" id="deselectAllBtn">전체 해제</button>
+                        </div>
+                    </div>
                     <div class="camera-search">
                         <input type="search" id="cameraSearch" placeholder="카메라 이름 검색...">
-                    </div>
-                    <div class="master-checkbox-container">
-                        <label>
-                            <input type="checkbox" id="masterCheckbox">
-                            <strong>표시된 항목 모두 선택</strong>
-                        </label>
                     </div>
                     <div class="camera-checklist" id="cameraChecklist">
                         <!-- JS로 카메라 목록 생성 -->
