@@ -196,6 +196,25 @@
 
 .chart-body {
     height: 450px;
+    position: relative; /* For positioning the placeholder */
+}
+
+.chart-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--text-muted);
+    font-weight: 600;
+    line-height: 1.6;
+    background-color: #fdfdfd;
+    border-radius: 8px;
+}
+
+#comparisonChart {
+    display: none; /* Initially hidden */
 }
 
 .chart-legend {

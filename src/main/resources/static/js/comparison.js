@@ -69,11 +69,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderChart() {
         const selectedCameras = Array.from(document.querySelectorAll('input[name="cameraSelect"]:checked')).map(cb => cb.value);
         const days = parseInt(dateRangeSelector.value);
+        const chartCanvas = document.getElementById('comparisonChart');
+        const chartPlaceholder = document.getElementById('chartPlaceholder');
 
         if (selectedCameras.length === 0) {
-            alert('비교할 카메라를 1개 이상 선택하세요.');
+            chartCanvas.style.display = 'none';
+            chartPlaceholder.style.display = 'flex';
+            if (comparisonChart) {
+                comparisonChart.destroy();
+                comparisonChart = null;
+            }
+            chartLegend.innerHTML = '';
             return;
         }
+
+        chartCanvas.style.display = 'block';
+        chartPlaceholder.style.display = 'none';
 
         const datasets = selectedCameras.map((id, index) => {
             const camStat = cameraStats.find(s => s.id == id);
