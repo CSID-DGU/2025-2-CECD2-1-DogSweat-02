@@ -128,6 +128,12 @@ button:focus-visible {
     font-weight: 600;
 }
 
+.side-menu a.side-menu__sub-item {
+    padding-left: 1.25rem; /* Indent sub-items */
+    font-size: 0.9rem;
+}
+
+
 .page-content {
     flex: 1;
     display: flex;

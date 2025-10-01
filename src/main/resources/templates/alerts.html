@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
+<head>
+    <title>알림 이력 | E-N-C 캠퍼스 관제</title>
+    <th:block th:fragment="headResources">
+        <link rel="stylesheet" th:href="@{/css/alerts.css}">
+        <script defer th:src="@{/js/cameradata.js}"></script>
+        <script defer th:src="@{/js/alerts.js}"></script>
+    </th:block>
+</head>
+<body>
+<section class="alerts-page">
+    <div class="alerts-surface">
+        <header class="alerts-header">
+            <div class="alerts-header__meta">
+                <p class="breadcrumbs">관제 &gt; 알림 이력</p>
+                <h1 class="title">알림 이력 조회</h1>
+            </div>
+            <p class="subtitle">과거에 발생한 모든 위험 및 주의 알림을 검색하고 분석합니다.</p>
+        </header>
+
+        <div class="filter-bar">
+            <div class="filter-item">
+                <label for="dateRange">기간</label>
+                <input type="text" id="dateRange" placeholder="날짜 범위 선택">
+            </div>
+            <div class="filter-item">
+                <label for="levelFilter">등급</label>
+                <select id="levelFilter">
+                    <option value="all">전체</option>
+                    <option value="danger">위험</option>
+                    <option value="warning">주의</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label for="cameraFilter">카메라</label>
+                <select id="cameraFilter">
+                    <option value="all">모든 카메라</option>
+                    <!-- JS로 카메라 목록 채우기 -->
+                </select>
+            </div>
+            <div class="filter-item filter-item--search">
+                <label for="searchFilter">검색</label>
+                <input type="search" id="searchFilter" placeholder="카메라 이름, 위치 등 검색">
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="history-table" id="alertsTable">
+                <thead>
+                    <tr>
+                        <th scope="col" data-sort="timestamp">발생 시각</th>
+                        <th scope="col" data-sort="cameraName">카메라 이름</th>
+                        <th scope="col" data-sort="location">위치</th>
+                        <th scope="col" data-sort="type">알림 유형</th>
+                        <th scope="col">상세 내용</th>
+                        <th scope="col" data-sort="level">등급</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- JS로 데이터 행 채우기 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination">
+            <!-- JS로 페이지네이션 채우기 -->
+        </div>
+    </div>
+</section>
+</body>
+</html>

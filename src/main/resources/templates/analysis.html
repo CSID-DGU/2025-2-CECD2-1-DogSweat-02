@@ -74,35 +74,15 @@
                     </div>
                 </article>
 
-                <div class="grid grid--split">
-                    <article class="card h-pad">
-                        <div class="card-head">
-                            <div>
-                                <div class="card-title">예측 기반 경보</div>
-                                <div class="muted">변화율·가속도</div>
-                            </div>
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">예측 기반 경보</div>
+                            <div class="muted">변화율·가속도</div>
                         </div>
-                        <div class="alert" id="predictiveAlert">현재 예측 경보 없음.</div>
-                    </article>
-                    <article class="card h-pad">
-                        <div class="card-head">
-                            <div>
-                                <div class="card-title">알림 이력</div>
-                                <div class="muted">최근 10건</div>
-                            </div>
-                        </div>
-                        <table id="alertTable">
-                            <thead>
-                                <tr>
-                                    <th scope="col">시각</th>
-                                    <th scope="col">유형</th>
-                                    <th scope="col">메시지</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </article>
-                </div>
+                    </div>
+                    <div class="alert" id="predictiveAlert">현재 예측 경보 없음.</div>
+                </article>
             </div>
 
             <div class="stack stack--aside">
@@ -246,6 +226,25 @@
                         <div class="sub">현재 대비 비율</div>
                         <div class="k" id="athRatio">—</div>
                     </div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">알림 이력</div>
+                            <div class="muted">최근 10건</div>
+                        </div>
+                    </div>
+                    <table id="alertTable">
+                        <thead>
+                            <tr>
+                                <th scope="col">시각</th>
+                                <th scope="col">유형</th>
+                                <th scope="col">메시지</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </article>
             </div>
         </div>
