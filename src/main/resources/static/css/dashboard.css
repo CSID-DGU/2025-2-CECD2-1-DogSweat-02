@@ -230,15 +230,31 @@
     color: var(--brand);
 }
 
-.dashboard-page .camera-rotation {
+.dashboard-page .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--gap-grid);
     align-items: start;
 }
 
+.dashboard-page .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-grid);
+}
+
+.dashboard-page .dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-grid);
+    position: sticky;
+    top: 2rem;
+}
+
 .dashboard-page .camera-stage,
-.dashboard-page .camera-info {
+.dashboard-page .camera-info,
+.dashboard-page .alerts-panel,
+.dashboard-page .alert-trend {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) + 4px);
@@ -607,24 +623,7 @@
     color: var(--muted);
 }
 
-.dashboard-page .support-panels {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 360px;
-    gap: var(--gap-grid);
-    align-items: start;
-}
 
-.dashboard-page .alerts-panel,
-.dashboard-page .alert-trend {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: clamp(18px, 5vw, 26px);
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
 
 .dashboard-page .alerts-panel__header {
     display: flex;

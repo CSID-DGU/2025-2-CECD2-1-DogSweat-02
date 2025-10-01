@@ -18,6 +18,11 @@ public class WebController {
         return "analysis";
     }
 
+    @GetMapping("/analysis/comparison")
+    public String comparisonPage() {
+        return "comparison";
+    }
+
     @GetMapping("/map")
     public String mapPage() {
         return "map";

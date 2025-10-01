@@ -69,140 +69,44 @@ document.addEventListener('DOMContentLoaded', () => {
   const scaleSeries = (series, factor, bias = 0) => series.map((value) => clamp(value * factor + bias, 0.04, 0.95));
   const scaleHeatmap = (heatmap, factor, bias = 0) => heatmap.map((row) => row.map((value) => clamp(value * factor + bias, 0, 1)));
 
-  const cameras = [
-    {
-      id: 'cam-entrance',
-      name: '공학관 9층 출입구',
-      location: '공학관 동측 9F S-구역',
-      status: { label: '혼잡', tone: 'danger' },
-      posterAccent: '#2b6ef2',
-      live: {
-        caption: '라이브 영상 14:36:18 기준',
-        overlays: {
-          boxes: [
-            { x: 0.12, y: 0.18, width: 0.28, height: 0.45, label: '주 출입구' },
-            { x: 0.52, y: 0.22, width: 0.20, height: 0.38, label: '계단 상단' },
-            { x: 0.40, y: 0.62, width: 0.18, height: 0.30, label: '엘리베이터' }
-          ],
-          hotspots: [
-            { x: 0.56, y: 0.32, radius: 0.22, intensity: 0.8 },
-            { x: 0.28, y: 0.58, radius: 0.18, intensity: 0.6 },
-            { x: 0.68, y: 0.64, radius: 0.16, intensity: 0.5 }
-          ]
-        }
-      },
-      metrics: {
-        timestamp: '2025-09-30 14:36:18',
-        congestion: 0.68,
-        yesterday: 0.52,
-        lastWeek: 0.41,
-        roc: 2.9,
-        acc: 1.2,
-        durationSec: 1164,
-        allTimeHigh: 0.87,
-        athMeta: '최고 기록 대비 9%p 여유',
-        predictiveAlert: '경고: 동측 출입로 혼잡 증가세 감지 (혼잡도 68%, 가속도 +1.2)',
-        anomaly: { normalMin: 0.45, normalMax: 0.60 },
-        riskIndex: 78,
-        riskGrade: '경고',
-        riskMeta: '밀집도 68% · 변동률 +2.9 · 가속도 +1.2 · 위험 지속 00:19:24',
+  const cameras = window.cameraData.map(cam => {
+    const statusMap = {
+        danger: { label: '위험', tone: 'danger' },
+        warning: { label: '주의', tone: 'warning' },
+        normal: { label: '정상', tone: 'neutral' }
+    };
+
+    // Mock metrics data for analysis page
+    const metrics = {
+        timestamp: new Date().toLocaleString(),
+        congestion: cam.congestion / 100,
+        yesterday: Math.max(0, cam.congestion - 10 + Math.round(Math.random() * 10)) / 100,
+        lastWeek: Math.max(0, cam.congestion - 15 + Math.round(Math.random() * 20)) / 100,
+        roc: (Math.random() * 5 - 2.5),
+        acc: (Math.random() * 2 - 1),
+        durationSec: Math.floor(Math.random() * 3600),
+        allTimeHigh: Math.min(100, cam.congestion + 10 + Math.random() * 10) / 100,
+        athMeta: '최고 기록 대비 데이터',
+        predictiveAlert: cam.status === 'danger' ? '혼잡도 급증 예측' : '',
+        anomaly: { normalMin: 0.3, normalMax: 0.6 },
+        riskIndex: cam.congestion,
+        riskGrade: statusMap[cam.status].label,
         alerts: [
-          { ts: '13:47:30', type: '경고', message: '동측 출입로 혼잡도가 72%까지 급증' },
-          { ts: '13:22:14', type: '주의', message: '계단 상단에서 3분 이상 체류 감지' },
-          { ts: '12:58:03', type: '주의', message: '양방향 통행 교차 증가로 흐름 저하' },
-          { ts: '12:11:49', type: '알림', message: '엘리베이터 대기행렬 길이 9m 도달' },
-          { ts: '11:36:22', type: '알림', message: '외부 우회동선으로 유입량 증가' }
+            { ts: '14:00:00', type: '주의', message: '테스트 알림 1' },
+            { ts: '13:30:00', type: '경고', message: '테스트 알림 2' },
         ]
-      },
-      series: baseSeries,
-      heatmap: baseHeatmap,
-    },
-    {
-      id: 'cam-rotunda',
-      name: '정문 로터리',
-      location: '본관 앞 로터리 광장',
-      status: { label: '주의', tone: 'warning' },
-      posterAccent: '#f97316',
-      live: {
-        caption: '라이브 영상 14:34:02 기준',
-        overlays: {
-          boxes: [
-            { x: 0.18, y: 0.26, width: 0.24, height: 0.42, label: '보행자 흐름' },
-            { x: 0.58, y: 0.18, width: 0.26, height: 0.34, label: '차량 진입' }
-          ],
-          hotspots: [
-            { x: 0.44, y: 0.36, radius: 0.24, intensity: 0.65 },
-            { x: 0.68, y: 0.52, radius: 0.18, intensity: 0.55 }
-          ]
-        }
-      },
-      metrics: {
-        timestamp: '2025-09-30 14:34:02',
-        congestion: 0.54,
-        yesterday: 0.47,
-        lastWeek: 0.38,
-        roc: 1.6,
-        acc: 0.6,
-        durationSec: 804,
-        allTimeHigh: 0.81,
-        athMeta: '사상 최고치 대비 27%p 감소',
-        predictiveAlert: '주의: 차량 진입 증가로 혼잡도 상승 예상 (혼잡도 54%)',
-        anomaly: { normalMin: 0.40, normalMax: 0.55 },
-        riskIndex: 58,
-        riskGrade: '주의',
-        riskMeta: '밀집도 54% · 변동률 +1.6 · 가속도 +0.6 · 위험 지속 00:13:24',
-        alerts: [
-          { ts: '13:18:11', type: '주의', message: '셔틀버스 도착으로 군집 밀도 상승' },
-          { ts: '12:43:05', type: '알림', message: '보행자 대기열이 횡단보도까지 확장' },
-          { ts: '12:06:48', type: '알림', message: '차량 회전 대기 3대 이상 감지' }
-        ]
-      },
-      series: scaleSeries(baseSeries, 0.82, -0.04),
-      heatmap: scaleHeatmap(baseHeatmap, 0.85, -0.06),
-    },
-    {
-      id: 'cam-library',
-      name: '학생회관 남측 로비',
-      location: '학생회관 1F 남측 로비',
-      status: { label: '안정', tone: 'neutral' },
-      posterAccent: '#10b981',
-      live: {
-        caption: '라이브 영상 14:29:44 기준',
-        overlays: {
-          boxes: [
-            { x: 0.32, y: 0.30, width: 0.22, height: 0.34, label: '무인 안내데스크' },
-            { x: 0.60, y: 0.48, width: 0.20, height: 0.28, label: '휴게존' }
-          ],
-          hotspots: [
-            { x: 0.30, y: 0.46, radius: 0.20, intensity: 0.35 },
-            { x: 0.62, y: 0.56, radius: 0.16, intensity: 0.28 }
-          ]
-        }
-      },
-      metrics: {
-        timestamp: '2025-09-30 14:29:44',
-        congestion: 0.31,
-        yesterday: 0.29,
-        lastWeek: 0.34,
-        roc: -0.4,
-        acc: -0.2,
-        durationSec: 216,
-        allTimeHigh: 0.62,
-        athMeta: '최고 기록 대비 31%p 여유',
-        predictiveAlert: '',
-        anomaly: { normalMin: 0.25, normalMax: 0.40 },
-        riskIndex: 32,
-        riskGrade: '안정',
-        riskMeta: '밀집도 31% · 변동률 -0.4 · 가속도 -0.2 · 위험 지속 00:03:36',
-        alerts: [
-          { ts: '13:04:22', type: '알림', message: '무인 안내데스크 앞 대기 2분 이상' },
-          { ts: '12:32:08', type: '알림', message: '학생증 인증 지연 3건 발생' }
-        ]
-      },
-      series: scaleSeries(baseSeries, 0.64, -0.18),
-      heatmap: scaleHeatmap(baseHeatmap, 0.6, -0.12),
-    }
-  ];
+    };
+
+    return {
+        ...cam,
+        status: statusMap[cam.status],
+        posterAccent: cam.status === 'danger' ? '#ef4444' : cam.status === 'warning' ? '#f59e0b' : '#10b981',
+        live: { overlays: { boxes: [], hotspots: [] } }, // Simplified
+        metrics,
+        series: baseSeries, // Keep base series for now
+        heatmap: baseHeatmap // Keep base heatmap for now
+    };
+  });
 
   const state = {
     cameras,
