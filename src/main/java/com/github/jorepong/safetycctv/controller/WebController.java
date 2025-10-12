@@ -33,8 +33,4 @@ public class WebController {
         return "alerts";
     }
 
-    @GetMapping("/cameras")
-    public String camerasPage() {
-        return "cameras";
-    }
 }
