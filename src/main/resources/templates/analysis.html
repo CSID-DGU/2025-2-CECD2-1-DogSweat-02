@@ -5,6 +5,7 @@
     <title>상세 분석 | E-N-C 캠퍼스 관제</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/analysis.css}">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <script defer th:src="@{/js/cameradata.js}"></script>
         <script defer th:src="@{/js/analysis.js}"></script>
     </th:block>
@@ -51,11 +52,30 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">혼잡도 추이</div>
-                            <div class="muted">최근 2시간</div>
+                            <div class="card-title">대화형 시계열 분석</div>
+                            <div class="muted">기간 및 비교 대상을 선택하여 혼잡도 추이를 분석합니다.</div>
                         </div>
                     </div>
-                    <div class="chart" id="seriesChart"></div>
+                    <div class="interactive-chart-controls">
+                        <div class="control-group">
+                            <span class="control-label">기간</span>
+                            <div class="control-buttons">
+                                <button class="control-btn is-active" data-period="2h">2시간</button>
+                                <button class="control-btn" data-period="24h">24시간</button>
+                                <button class="control-btn" data-period="7d">1주일</button>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <span class="control-label">비교</span>
+                            <div class="control-buttons">
+                                <button class="control-btn" data-compare="yesterday">어제</button>
+                                <button class="control-btn" data-compare="lastWeek">지난주</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chart-container" style="height: 320px;">
+                        <canvas id="interactiveTimeSeriesChart"></canvas>
+                    </div>
                 </article>
 
                 <article class="card h-pad">

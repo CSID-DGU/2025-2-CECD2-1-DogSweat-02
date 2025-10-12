@@ -837,27 +837,67 @@
     color: #ffffff;
 }
 
-/* Risk Grade Badge Style */
-.analysis-page .grade {
-    display: inline-block;
-    padding: 4px 12px;
+/* Interactive Chart Controls */
+.analysis-page .interactive-chart-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+}
+
+.analysis-page .control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-page .control-label {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-2);
+    white-space: nowrap;
+}
+
+.analysis-page .control-buttons {
+    display: flex;
+    align-items: center;
+    background: #f3f4f6;
     border-radius: 8px;
-    font-weight: 800;
-    font-size: 15px;
-    line-height: 1.4;
+    padding: 4px;
 }
 
-.analysis-page .grade--danger {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #b91c1c;
+.analysis-page .control-btn {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink-2);
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.analysis-page .grade--warning {
-    background-color: rgba(245, 158, 11, 0.1);
-    color: #b45309;
+.analysis-page .control-btn:hover {
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05);
 }
 
-.analysis-page .grade--normal {
-    background-color: rgba(22, 163, 74, 0.1);
-    color: #14532d;
+.analysis-page .control-btn.is-active {
+    background: var(--brand);
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(43, 110, 242, 0.15);
+}
+
+.analysis-page .control-btn[data-compare].is-active {
+    background: #374151; /* A different color for comparison buttons */
+    color: #ffffff;
+    box-shadow: 0 4px 8px rgba(55, 65, 81, 0.15);
+}
+
+.analysis-page .chart-container {
+    position: relative;
+    width: 100%;
 }
