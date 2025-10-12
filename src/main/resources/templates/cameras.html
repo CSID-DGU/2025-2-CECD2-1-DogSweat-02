@@ -1,0 +1,20 @@
+﻿<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
+<head>
+    <title>카메라 관리 | E-N-C 안전 관제 시스템</title>
+    <th:block th:fragment="headResources"></th:block>
+</head>
+<body>
+<section class="camera-management-page">
+    <header class="page-header">
+        <p class="breadcrumbs">관리 &gt; 카메라 관리</p>
+        <h1 class="title">카메라 관리</h1>
+        <p class="subtitle">관제 대상 카메라의 현황과 제어 설정을 통합 관리하는 화면입니다.</p>
+    </header>
+    <div class="page-placeholder">
+        <p>카메라 관리 기능이 곧 제공됩니다.</p>
+    </div>
+</section>
+</body>
+</html>

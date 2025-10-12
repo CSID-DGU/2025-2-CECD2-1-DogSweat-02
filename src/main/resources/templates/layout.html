@@ -25,8 +25,7 @@
                 <a th:href="@{/map}" th:classappend="${#strings.startsWith(requestURI, '/map') ? 'active' : ''}">지도</a>
                 <a th:href="@{/alerts}" th:classappend="${#strings.startsWith(requestURI, '/alerts') ? 'active' : ''}">알림 이력</a>
                 <p class="side-menu__title">관리</p>
-                <a href="#">일정 관리</a>
-                <a href="#">설정</a>
+                <a th:href="@{/cameras}" th:classappend="${#strings.startsWith(requestURI, '/cameras') ? 'active' : ''}">카메라 관리</a>
             </nav>
             <main class="page-content" th:insert="${content}"></main>
         </div>

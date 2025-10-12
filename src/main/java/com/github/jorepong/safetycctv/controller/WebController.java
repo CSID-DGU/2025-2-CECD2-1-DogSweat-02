@@ -32,4 +32,9 @@ public class WebController {
     public String alertsPage() {
         return "alerts";
     }
+
+    @GetMapping("/cameras")
+    public String camerasPage() {
+        return "cameras";
+    }
 }
