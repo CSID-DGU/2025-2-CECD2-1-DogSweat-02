@@ -157,9 +157,10 @@
 }
 
 .camera-management-page .management-stack {
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
-    gap: var(--gap-grid);
-    align-items: start;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(24px, 4vw, 36px);
+    width: 100%;
 }
 
 .camera-management-page .card {
@@ -179,6 +180,8 @@
     flex-direction: column;
     gap: var(--gap-stack);
     min-width: 0;
+    width: 100%;
+    align-self: stretch;
 }
 
 .camera-management-page .card-body {
@@ -207,7 +210,7 @@
     margin: 4px 0 0;
     color: var(--ink-2);
     font-size: 0.92rem;
-    max-width: 48ch;
+    max-width: 100%;
     line-height: 1.45;
 }
 
@@ -270,13 +273,15 @@
 
 .camera-management-page .table-region {
     display: flex;
+    flex-direction: column;
     flex-wrap: wrap;
     gap: clamp(12px, 2vw, var(--gap-grid));
     align-items: stretch;
 }
 
 .camera-management-page .table-wrapper {
-    flex: 1 1 640px;
+    flex: 1 1 auto;
+    width: 100%;
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) - 4px);
     background: var(--panel);
@@ -285,17 +290,20 @@
 }
 
 .camera-management-page .table-scroll {
-    max-height: clamp(420px, 68vh, 820px);
-    overflow: auto;
-    padding-bottom: 6px;
-    scrollbar-gutter: stable both-edges;
+    display: block;
+    max-height: clamp(480px, 70vh, 820px);
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding-bottom: 0;
     overscroll-behavior: contain;
 }
 
 .camera-management-page .camera-table {
     width: 100%;
-    min-width: min(880px, 100%);
+    min-width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
     font-size: 0.94rem;
     color: var(--ink-2);
 }
@@ -380,63 +388,12 @@
     color: #475569;
 }
 
-.camera-management-page .selection-info {
-    flex: 0 1 clamp(240px, 26%, 300px);
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: calc(var(--radius) - 4px);
-    background: #f8fafc;
-    padding: clamp(14px, 2.4vw, 18px);
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-width: 0;
-    width: 100%;
-    max-width: clamp(240px, 26%, 300px);
-    position: sticky;
-    top: clamp(96px, 12vh, 132px);
-    align-self: flex-start;
-    z-index: 0;
-}
-
 .camera-management-page .camera-editor-card {
-    position: sticky;
-    top: clamp(96px, 12vh, 132px);
-    align-self: start;
-    z-index: 0;
-}
-
-.camera-management-page .selection-info h3 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--ink);
-}
-
-.camera-management-page .selection-info dl {
-    margin: 0;
-    display: grid;
-    gap: 10px;
+    position: static;
+    max-width: 100%;
     width: 100%;
-}
-
-.camera-management-page .selection-info dl div {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.camera-management-page .selection-info dt {
     margin: 0;
-    font-size: 0.83rem;
-    color: var(--muted);
-    font-weight: 600;
-}
-
-.camera-management-page .selection-info dd {
-    margin: 0;
-    font-weight: 700;
-    color: var(--ink);
+    align-self: stretch;
 }
 
 .camera-management-page .helper-text {
@@ -513,6 +470,16 @@
     color: rgba(71, 85, 105, 0.6);
 }
 
+.camera-management-page .field-error {
+    font-size: 0.78rem;
+    color: var(--danger);
+}
+
+.camera-management-page .field-helper {
+    font-size: 0.78rem;
+    color: var(--muted);
+}
+
 .camera-management-page .location-section {
     display: grid;
     gap: var(--gap-stack);
@@ -535,7 +502,7 @@
 .camera-management-page .location-header p {
     margin: 4px 0 0;
     color: var(--ink-2);
-    max-width: 40ch;
+    max-width: 100%;
 }
 
 .camera-management-page .address-search__controls {
@@ -554,24 +521,86 @@
     gap: var(--gap-stack);
 }
 
-.camera-management-page .map-preview {
-    border: 1px dashed rgba(71, 85, 105, 0.38);
+.camera-management-page .map-container {
+    border: 1px solid rgba(71, 85, 105, 0.24);
     border-radius: calc(var(--radius) - 4px);
-    min-height: 260px;
-    background: linear-gradient(145deg, rgba(43, 110, 242, 0.08), rgba(43, 110, 242, 0.02));
+    background: #ffffff;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    text-align: center;
-    color: var(--muted);
-    padding: 24px;
+    gap: 10px;
+    padding: 16px;
+    min-height: 360px;
+    position: relative;
 }
 
-.camera-management-page .map-preview p {
+.camera-management-page .map-canvas {
+    flex: 1 1 auto;
+    min-height: 300px;
+    border-radius: calc(var(--radius) - 6px);
+    background: linear-gradient(145deg, rgba(43, 110, 242, 0.08), rgba(43, 110, 242, 0.02));
+    border: 1px dashed rgba(71, 85, 105, 0.38);
+}
+
+.camera-management-page .map-locate-button {
+    position: absolute;
+    right: calc(16px + 18px);
+    top: calc(16px + 18px);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    padding: 0;
+}
+
+.camera-management-page .map-locate-button:hover {
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+    transform: translateY(-1px);
+}
+
+.camera-management-page .map-locate-button:active {
+    transform: translateY(0);
+}
+
+.camera-management-page .map-locate-button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.camera-management-page .map-locate-button span[aria-hidden="true"] {
+    width: 18px;
+    height: 18px;
+    background: #1f4bd8;
+    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%231f4bd8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 1-7 7 7 7 0 0 1-7-7 7 7 0 0 1 7-7 7 7 0 0 1 7 7z"/><line x1="12" y1="5" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="19"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="3" y1="12" x2="5" y2="12"/></svg>') no-repeat center;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="%231f4bd8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 1-7 7 7 7 0 0 1-7-7 7 7 0 0 1 7-7 7 7 0 0 1 7 7z"/><line x1="12" y1="5" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="19"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="3" y1="12" x2="5" y2="12"/></svg>') no-repeat center;
+    background-color: #1f4bd8;
+}
+
+.camera-management-page .map-locate-button .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.camera-management-page .map-hint {
     margin: 0;
-    font-size: 0.93rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+}
+
+.camera-management-page .map-hint--error {
+    color: var(--danger);
 }
 
 .camera-management-page .coordinates-card {
@@ -678,6 +707,71 @@
     border-color: rgba(239, 68, 68, 0.45);
 }
 
+.camera-management-page .toast {
+    background: #1f4bd8;
+    color: #ffffff;
+    border-radius: 999px;
+    padding: 12px 24px;
+    width: fit-content;
+    box-shadow: 0 8px 24px rgba(31, 75, 216, 0.25);
+}
+
+.camera-management-page .empty-row {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.camera-management-page .table-primary-text {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.camera-management-page .table-secondary-text {
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.camera-management-page .stream-url {
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    font-size: 0.82rem;
+    word-break: break-all;
+    color: var(--brand-strong);
+    background: rgba(43, 110, 242, 0.08);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.camera-management-page .status-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--ink-2);
+    text-transform: none;
+}
+
+.camera-management-page .status-chip--healthy {
+    background: rgba(22, 163, 74, 0.16);
+    color: var(--ok);
+}
+
+.camera-management-page .status-chip--warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
+.camera-management-page .status-chip--offline {
+    background: rgba(239, 68, 68, 0.18);
+    color: var(--danger);
+}
+
 @media (max-width: 1280px) {
     .camera-management-page {
         --gap-grid: 12px;
@@ -686,7 +780,7 @@
     }
 
     .camera-management-page .management-stack {
-        grid-template-columns: 1fr;
+        gap: clamp(18px, 4vw, 24px);
     }
 
     .camera-management-page .table-region {
@@ -700,13 +794,6 @@
 
     .camera-management-page .table-scroll {
         max-height: none;
-    }
-
-    .camera-management-page .selection-info {
-        position: static;
-        top: auto;
-        max-width: none;
-        flex: 1 1 auto;
     }
 
     .camera-management-page .camera-editor-card {
