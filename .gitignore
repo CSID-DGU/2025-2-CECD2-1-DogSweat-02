@@ -9,6 +9,8 @@ build/
 camera_detail_full.html
 project_description.md
 WEBPAGE_PLAN.md
+AGENTS.md
+README.md
 
 ### STS ###
 .apt_generated
@@ -40,3 +42,4 @@ out/
 
 ### VS Code ###
 .vscode/
+.env
