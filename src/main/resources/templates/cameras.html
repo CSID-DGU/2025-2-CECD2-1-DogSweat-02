@@ -5,6 +5,7 @@
     <title>카메라 관리 | E-N-C 안전 관제</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/cameras.css}">
+        <script th:src="@{/js/cameras.js}" defer></script>
         <script th:src="@{/js/camera-map.js}" defer></script>
         <th:block th:if="${naverMapClientId}">
             <script th:src="@{'https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=' + ${naverMapClientId} + '&submodules=geocoder&callback=initCameraMap'}"
@@ -92,13 +93,14 @@
                                         <th scope="col">카메라명</th>
                                         <th scope="col">주소 / 좌표</th>
                                         <th scope="col">상태</th>
-                                        <th scope="col">RTSP 스트림</th>
+                                        <th scope="col">스트리밍 유형</th>
+                                        <th scope="col">스트리밍 주소</th>
                                         <th scope="col">작업</th>
                                     </tr>
                                     </thead>
                                     <tbody>
                                     <tr th:if="${#lists.isEmpty(cameras)}">
-                                        <td colspan="5" class="empty-row">
+                                        <td colspan="6" class="empty-row">
                                             아직 등록된 카메라가 없습니다. 아래 폼으로 첫 카메라를 추가해 주세요.
                                         </td>
                                     </tr>
@@ -126,6 +128,12 @@
                                                   th:text="${camera.status.displayName}"
                                                   th:classappend="${' status-chip--' + camera.status.name().toLowerCase()}">
                                                 정상
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="table-primary-text"
+                                                  th:text="${camera.streamType != null ? camera.streamType.displayName : 'RTSP 스트림'}">
+                                                RTSP 스트림
                                             </span>
                                         </td>
                                         <td>
@@ -165,13 +173,43 @@
                                     <span class="field-error" th:if="${#fields.hasErrors('name')}"
                                           th:errors="*{name}">카메라 이름 오류</span>
                                 </label>
-                                <label class="field">
-                                    <span class="field-label">RTSP 스트림 주소</span>
-                                    <input type="url" th:field="*{streamUrl}" placeholder="rtsp://example.com/live" required>
-                                    <span class="field-error" th:if="${#fields.hasErrors('streamUrl')}"
-                                          th:errors="*{streamUrl}">스트림 주소 오류</span>
-                                </label>
+                                <div class="field field--option-group">
+                                    <span class="field-label">스트리밍 유형</span>
+                                    <div class="option-group" role="group" aria-label="스트리밍 유형 선택">
+                                        <label class="option-pill">
+                                            <input type="radio"
+                                                   th:field="*{streamType}"
+                                                   value="RTSP"
+                                                   data-url-placeholder="rtsp://example.com/live"
+                                                   data-helper="RTSP 주소는 rtsp://로 시작해야 합니다.">
+                                            <span>RTSP</span>
+                                        </label>
+                                        <label class="option-pill">
+                                            <input type="radio"
+                                                   th:field="*{streamType}"
+                                                   value="YOUTUBE"
+                                                   data-url-placeholder="https://www.youtube.com/live/..."
+                                                   data-helper="YouTube Live 전체 URL을 입력하세요.">
+                                            <span>YouTube Live</span>
+                                        </label>
+                                    </div>
+                                    <span class="field-error" th:if="${#fields.hasErrors('streamType')}"
+                                          th:errors="*{streamType}">스트리밍 유형 오류</span>
+                                </div>
                             </div>
+                            <label class="field">
+                                <span class="field-label" data-role="stream-url-label">스트리밍 주소</span>
+                                <input type="url"
+                                       th:field="*{streamUrl}"
+                                       placeholder="rtsp://example.com/live"
+                                       data-role="stream-url-input"
+                                       required>
+                                <span class="field-helper" data-role="stream-url-helper">
+                                    RTSP는 rtsp://로 시작해야 하고, YouTube는 전체 공유 URL을 입력하세요.
+                                </span>
+                                <span class="field-error" th:if="${#fields.hasErrors('streamUrl')}"
+                                      th:errors="*{streamUrl}">스트리밍 주소 오류</span>
+                            </label>
                             <label class="field">
                                 <span class="field-label">카메라 설명</span>
                                 <textarea th:field="*{description}" rows="3"
