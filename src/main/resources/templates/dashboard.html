@@ -29,17 +29,17 @@
             <div class="summary-strip">
                 <article class="summary-item">
                     <h2>전체 카메라</h2>
-                    <p class="summary-value" data-role="total-cameras">128대</p>
-                    <p class="summary-note">실시간 108대 · 대기 20대</p>
+                    <p class="summary-value" data-role="total-cameras">5대</p>
+                    <p class="summary-note">실시간 4대 · 대기 1대</p>
                 </article>
                 <article class="summary-item">
                     <h2>위험 구역</h2>
-                    <p class="summary-value summary-value--danger" data-role="danger-count">9곳</p>
-                    <p class="summary-note">주의 14 · 정상 105</p>
+                    <p class="summary-value summary-value--danger" data-role="danger-count">1곳</p>
+                    <p class="summary-note">주의 1 · 정상 3</p>
                 </article>
                 <article class="summary-item">
                     <h2>AI 감지 이벤트</h2>
-                    <p class="summary-value" data-role="ai-events">126건</p>
+                    <p class="summary-value" data-role="ai-events">5건</p>
                     <p class="summary-note">최근 30분 누적</p>
                 </article>
                 <article class="summary-item">
@@ -71,19 +71,23 @@
                     <header class="camera-stage__header">
                         <div>
                             <p class="camera-stage__label">카메라</p>
-                            <h2 data-role="camera-name"><a th:href="@{/analysis}" style="text-decoration: none; color: inherit;">학생회관 3층 복도</a></h2>
-                            <p class="camera-stage__location" data-role="camera-location">건물 A · 존 3F</p>
+                            <h2 data-role="camera-name"><a th:href="@{/analysis}" style="text-decoration: none; color: inherit;">신공학관 9층 출입구</a></h2>
+                            <p class="camera-stage__location" data-role="camera-location">신공학관 · 9F</p>
                         </div>
                         <span class="camera-stage__status" data-role="camera-status">위험</span>
                     </header>
                     <div class="camera-stage__feeds">
                         <figure class="camera-view camera-view--live" aria-label="실시간 영상">
-                            <div class="camera-view__display" data-role="live-display">실시간 스트림</div>
+                            <div class="camera-view__display" data-role="live-display">
+                                <img th:src="@{/img/frame_20251017_214219.jpg}" alt="실시간 스트림">
+                            </div>
                             <div class="camera-view__overlay" data-role="live-overlay"></div>
                             <figcaption data-role="live-caption">라이브 · 14:32:18</figcaption>
                         </figure>
                         <figure class="camera-view camera-view--snapshot" aria-label="AI 스냅샷">
-                            <div class="camera-view__display" data-role="snapshot-display">AI 분석 스냅샷</div>
+                            <div class="camera-view__display" data-role="snapshot-display">
+                                <img th:src="@{/img/annotated_20251017_214219.jpg}" alt="AI 분석 스냅샷">
+                            </div>
                             <div class="camera-view__overlay" data-role="snapshot-overlay"></div>
                             <figcaption data-role="snapshot-caption">14:32:00 캡처 · 30초마다 갱신</figcaption>
                         </figure>
@@ -98,35 +102,35 @@
                         <li class="alerts-item alerts-item--high">
                             <time>14:31:44</time>
                             <div>
-                                <p>학생회관 3층 복도</p>
+                                <p>혜화관 1층 로비</p>
                                 <span>밀집도 0.78 · 위험 지속 4분</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--medium">
                             <time>14:30:58</time>
                             <div>
-                                <p>체육관 서문</p>
+                                <p>중앙도서관 입구</p>
                                 <span>입장 대기열 증가</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--high">
                             <time>14:28:12</time>
                             <div>
-                                <p>중앙광장 분수대</p>
+                                <p>만해광장</p>
                                 <span>군중 급격 증가</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--low">
                             <time>14:27:05</time>
                             <div>
-                                <p>생활관 2동 로비</p>
+                                <p>남산학사 A동 로비</p>
                                 <span>야간 통행 정상</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--medium">
                             <time>14:25:41</time>
                             <div>
-                                <p>공학관 B1 로비</p>
+                                <p>원흥관 2층</p>
                                 <span>강의 종료 인파 이동</span>
                             </div>
                         </li>
