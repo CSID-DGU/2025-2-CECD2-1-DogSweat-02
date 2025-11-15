@@ -1,5 +1,7 @@
-package com.github.jorepong.safetycctv.camera;
+package com.github.jorepong.safetycctv.entity;
 
+import com.github.jorepong.safetycctv.camera.CameraStatus;
+import com.github.jorepong.safetycctv.camera.StreamType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

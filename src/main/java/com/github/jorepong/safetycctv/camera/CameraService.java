@@ -1,6 +1,7 @@
 package com.github.jorepong.safetycctv.camera;
 
 import com.github.jorepong.safetycctv.dashboard.DashboardCameraView;
+import com.github.jorepong.safetycctv.entity.Camera;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package com.github.jorepong.safetycctv.dashboard;
 
-import com.github.jorepong.safetycctv.camera.Camera;
+import com.github.jorepong.safetycctv.entity.Camera;
 import com.github.jorepong.safetycctv.camera.StreamType;
 import java.net.URI;
 import java.net.URLDecoder;

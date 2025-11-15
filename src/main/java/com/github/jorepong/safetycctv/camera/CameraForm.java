@@ -1,5 +1,6 @@
 package com.github.jorepong.safetycctv.camera;
 
+import com.github.jorepong.safetycctv.entity.Camera;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
