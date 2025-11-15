@@ -25,9 +25,7 @@ public class CameraController {
 
     @GetMapping("/cameras")
     public String cameras(@ModelAttribute("cameraForm") CameraForm cameraForm, Model model) {
-        model.addAttribute("cameras", cameraService.fetchAll());
-        model.addAttribute("summary", cameraService.summarize());
-        model.addAttribute("naverMapClientId", naverMapClientId);
+        populateCameraModel(model);
         return "cameras";
     }
 
@@ -38,12 +36,19 @@ public class CameraController {
         Model model,
         RedirectAttributes redirectAttributes
     ) {
+        if (!cameraForm.isStreamUrlValidForType()) {
+            bindingResult.rejectValue(
+                "streamUrl",
+                "camera.streamUrl.invalid",
+                cameraForm.streamUrlRuleMessage()
+            );
+        }
+
         if (bindingResult.hasErrors()) {
-            model.addAttribute("cameras", cameraService.fetchAll());
-            model.addAttribute("summary", cameraService.summarize());
-            model.addAttribute("naverMapClientId", naverMapClientId);
+            populateCameraModel(model);
             return "cameras";
         }
+
         cameraService.create(cameraForm);
         redirectAttributes.addFlashAttribute("toastMessage", "카메라가 추가되었습니다.");
         return "redirect:/cameras";
@@ -57,5 +62,11 @@ public class CameraController {
         cameraService.delete(cameraId);
         redirectAttributes.addFlashAttribute("toastMessage", "카메라가 삭제되었습니다.");
         return "redirect:/cameras";
+    }
+
+    private void populateCameraModel(Model model) {
+        model.addAttribute("cameras", cameraService.fetchAll());
+        model.addAttribute("summary", cameraService.summarize());
+        model.addAttribute("naverMapClientId", naverMapClientId);
     }
 }

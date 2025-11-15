@@ -36,6 +36,11 @@ public class Camera {
     @Column(nullable = false)
     private String streamUrl;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private StreamType streamType = StreamType.RTSP;
+
     @Column(length = 120)
     private String locationZone;
 
@@ -66,6 +71,9 @@ public class Camera {
         this.updatedAt = now;
         if (this.status == null) {
             this.status = CameraStatus.HEALTHY;
+        }
+        if (this.streamType == null) {
+            this.streamType = StreamType.RTSP;
         }
     }
 

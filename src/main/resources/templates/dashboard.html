@@ -1,12 +1,10 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
 <head>
     <title>대시보드 | E-N-C 안전 시스템</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/dashboard.css}">
-        <script defer th:src="@{/js/cameradata.js}"></script>
-        <script defer th:src="@{/js/dashboard.js}"></script>
     </th:block>
 </head>
 <body>
@@ -15,51 +13,63 @@
         <section class="dashboard-header">
             <div class="dashboard-header__meta">
                 <div>
-                    <p class="dashboard-header__subtitle">캠퍼스 안전 상황판</p>
-                    <h1 class="dashboard-header__title">실시간 관제 현황</h1>
+                    <p class="dashboard-header__subtitle">등록된 스트리밍 현황</p>
+                    <h1 class="dashboard-header__title">실시간 영상 대시보드</h1>
                 </div>
                 <div class="dashboard-header__timestamp">
-                    <span data-role="clock">2025-06-05 14:32:18 KST 기준</span>
-                    <span class="timestamp__badge">60초마다 자동 갱신</span>
+                    <span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')} + ' KST 기준'">
+                        2025-06-05 14:32:18 KST 기준
+                    </span>
+                    <span class="timestamp__badge">페이지 진입 시 자동 재생</span>
                 </div>
             </div>
             <p class="dashboard-header__description">
-                CCTV 피드를 기반으로 밀집도와 위험 징후를 분석합니다. 입력 장치가 없는 관제 모니터에서는 자동 순환으로 모든 카메라를 확인하고, 조작 시에는 즉시 수동 모드로 전환됩니다.
+                등록된 YouTube Live 스트림을 바로 재생합니다. 추후 AI 분석 및 알림 모듈이 연결되면 혼잡도, 이벤트, 스냅샷 정보도 한 화면에서 확인할 수 있습니다.
             </p>
             <div class="summary-strip">
                 <article class="summary-item">
                     <h2>전체 카메라</h2>
-                    <p class="summary-value" data-role="total-cameras">5대</p>
-                    <p class="summary-note">실시간 4대 · 대기 1대</p>
+                    <p class="summary-value"
+                       th:text="${streamingCameras != null and !streamingCameras.isEmpty() ? streamingCameras.size() + '대' : '5대'}">5대</p>
+                    <p class="summary-note"
+                       th:text="${streamingCameras != null and !streamingCameras.isEmpty()
+                                ? 'YouTube Live 등록 수'
+                                : '예시: 가동 4대 · 대기 1대'}">
+                        예시: 가동 4대 · 대기 1대
+                    </p>
                 </article>
                 <article class="summary-item">
-                    <h2>위험 구역</h2>
-                    <p class="summary-value summary-value--danger" data-role="danger-count">1곳</p>
-                    <p class="summary-note">주의 1 · 정상 3</p>
+                    <h2>위험 경보</h2>
+                    <p class="summary-value summary-value--danger">1건</p>
+                    <p class="summary-note">예시: 심각 1 · 경미 3</p>
                 </article>
                 <article class="summary-item">
-                    <h2>AI 감지 이벤트</h2>
-                    <p class="summary-value" data-role="ai-events">5건</p>
-                    <p class="summary-note">최근 30분 누적</p>
+                    <h2>AI 분석 이벤트</h2>
+                    <p class="summary-value">5건</p>
+                    <p class="summary-note">예시: 최근 30분 기준</p>
                 </article>
                 <article class="summary-item">
-                    <h2>평균 혼잡도</h2>
-                    <p class="summary-value" data-role="avg-density">0.38</p>
-                    <p class="summary-note">어제 대비 -5%</p>
+                    <h2>평균 체류율</h2>
+                    <p class="summary-value">0.38</p>
+                    <p class="summary-note">예시: 지난 주 대비 -5%</p>
                 </article>
             </div>
             <div class="rotation-status" role="status">
                 <div>
-                    <p class="rotation-status__title">카메라 순환 재생 <span data-role="rotation-mode">자동</span></p>
-                    <p class="rotation-status__note" data-role="rotation-note">30초마다 6대씩 노출 · 총 128대 자동 순환 중</p>
+                    <p class="rotation-status__title">카메라 선택 모드</p>
+                    <p class="rotation-status__note">우측 목록에서 보고 싶은 카메라를 선택하세요. (예시: 자동 순환 30초)</p>
                 </div>
                 <div class="rotation-status__controls">
-                    <span class="rotation-indicator rotation-indicator--auto" data-role="rotation-indicator">AUTO</span>
-                    <span class="rotation-status__interval" data-role="rotation-interval">현재 그룹 01 · 남은 시간 30초</span>
+                    <span class="rotation-indicator rotation-indicator--auto">
+                        <span th:text="${primaryCamera != null ? 'LIVE' : 'OFF'}">LIVE</span>
+                    </span>
+                    <span class="rotation-status__interval"
+                          th:text="${primaryCamera != null ? primaryCamera.name() : '재생 가능한 카메라 없음'}">
+                        현재 재생 중인 카메라
+                    </span>
                     <div class="rotation-buttons">
-                        <button class="rotation-status__action" type="button" data-action="prev">이전</button>
-                        <button class="rotation-status__action" type="button" data-action="next">다음</button>
-                        <button class="rotation-status__action rotation-status__action--mode" type="button" data-action="toggle">수동 제어 모드</button>
+                        <a class="rotation-status__action rotation-status__action--mode"
+                           th:href="@{/cameras}">카메라 추가</a>
                     </div>
                 </div>
             </div>
@@ -67,109 +77,188 @@
 
         <div class="dashboard-grid">
             <main class="dashboard-main">
-                <section class="camera-stage" data-role="camera-stage">
+                <section class="camera-stage">
                     <header class="camera-stage__header">
                         <div>
                             <p class="camera-stage__label">카메라</p>
-                            <h2 data-role="camera-name"><a th:href="@{/analysis}" style="text-decoration: none; color: inherit;">신공학관 9층 출입구</a></h2>
-                            <p class="camera-stage__location" data-role="camera-location">신공학관 · 9F</p>
+                            <h2>
+                                <span th:if="${primaryCamera != null}"
+                                      th:text="${primaryCamera.name()}">중앙로비 9층 출입구</span>
+                                <span th:if="${primaryCamera == null}">재생 가능한 카메라가 없습니다</span>
+                            </h2>
+                            <p class="camera-stage__location">
+                                <span th:if="${primaryCamera != null}"
+                                      th:text="${primaryCamera.location() != null ? primaryCamera.location() : '위치 정보 미등록'}">
+                                    중앙로비 동 9F
+                                </span>
+                                <span th:if="${primaryCamera == null}">
+                                    대시보드에서 재생할 YouTube Live 카메라를 등록해 주세요.
+                                </span>
+                            </p>
                         </div>
-                        <span class="camera-stage__status" data-role="camera-status">위험</span>
+                        <span class="camera-stage__status"
+                              th:text="${primaryCamera != null ? 'YouTube Live' : '대기'}">YouTube Live</span>
                     </header>
                     <div class="camera-stage__feeds">
-                        <figure class="camera-view camera-view--live" aria-label="실시간 영상">
-                            <div class="camera-view__display" data-role="live-display">
-                                <img th:src="@{/img/frame_20251017_214219.jpg}" alt="실시간 스트림">
+                        <figure class="camera-view camera-view--live" aria-label="실시간 스트림">
+                            <div class="camera-view__display camera-view__display--media"
+                                 th:if="${primaryCamera != null}">
+                                <iframe th:src="${primaryCamera.embedUrl()}"
+                                        title="YouTube Live"
+                                        allow="autoplay; encrypted-media; picture-in-picture"
+                                        allowfullscreen
+                                        loading="lazy"></iframe>
                             </div>
-                            <div class="camera-view__overlay" data-role="live-overlay"></div>
-                            <figcaption data-role="live-caption">라이브 · 14:32:18</figcaption>
+                            <div class="camera-view__display camera-view__display--empty"
+                                 th:if="${primaryCamera == null}">
+                                <p>재생 가능한 YouTube Live 카메라가 없습니다.</p>
+                                <a class="btn btn--ghost btn--sm" th:href="@{/cameras}">카메라 등록</a>
+                            </div>
+                            <figcaption th:text="${primaryCamera != null ? primaryCamera.name() + ' · 자동 재생 중' : '등록된 카메라 없음'}">
+                                라이브 프레임 · 14:32:18
+                            </figcaption>
                         </figure>
-                        <figure class="camera-view camera-view--snapshot" aria-label="AI 스냅샷">
-                            <div class="camera-view__display" data-role="snapshot-display">
-                                <img th:src="@{/img/annotated_20251017_214219.jpg}" alt="AI 분석 스냅샷">
+                        <figure class="camera-view camera-view--snapshot" aria-label="30초 스냅샷">
+                            <div class="camera-view__display camera-view__display--placeholder">
+                                <p>30초 스냅샷 기능은 준비 중입니다.</p>
+                                <span>AI 분석 모듈과 함께 제공될 예정입니다.</span>
                             </div>
-                            <div class="camera-view__overlay" data-role="snapshot-overlay"></div>
-                            <figcaption data-role="snapshot-caption">14:32:00 캡처 · 30초마다 갱신</figcaption>
+                            <figcaption>스냅샷 모듈 준비중 (예시: 14:32:00 기준)</figcaption>
                         </figure>
                     </div>
                 </section>
+
                 <article class="alerts-panel alerts-panel--wide" aria-labelledby="alerts-title">
                     <div class="alerts-panel__header">
-                        <h2 id="alerts-title">최신 알림</h2>
-                        <p class="alerts-panel__summary">최근 30분 38건 · 심각 5 · 주의 12</p>
+                        <h2 id="alerts-title">최근 알림 (예시)</h2>
+                        <p class="alerts-panel__summary">실제 알림 모듈 연동 시 자동 갱신됩니다.</p>
                     </div>
-                    <ul class="alerts-list" data-role="alerts-list">
+                    <ul class="alerts-list">
                         <li class="alerts-item alerts-item--high">
                             <time>14:31:44</time>
                             <div>
-                                <p>혜화관 1층 로비</p>
-                                <span>밀집도 0.78 · 위험 지속 4분</span>
+                                <p>혼잡도 1단계</p>
+                                <span>밀집도 0.78 · 대기열 4열</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--medium">
                             <time>14:30:58</time>
                             <div>
-                                <p>중앙도서관 입구</p>
-                                <span>입장 대기열 증가</span>
+                                <p>차량진입구 B동</p>
+                                <span>차량 대기열 증가</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--high">
                             <time>14:28:12</time>
                             <div>
-                                <p>만해광장</p>
-                                <span>군중 급격 증가</span>
+                                <p>비상문 개방</p>
+                                <span>화재 센서 감지</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--low">
                             <time>14:27:05</time>
                             <div>
-                                <p>남산학사 A동 로비</p>
-                                <span>야간 통행 정상</span>
+                                <p>물류창고 A동</p>
+                                <span>출입 기록 누락</span>
                             </div>
                         </li>
                         <li class="alerts-item alerts-item--medium">
                             <time>14:25:41</time>
                             <div>
-                                <p>원흥관 2층</p>
-                                <span>강의 종료 인파 이동</span>
+                                <p>주차동 2층</p>
+                                <span>역주행 의심 이동</span>
                             </div>
                         </li>
                     </ul>
                 </article>
             </main>
             <aside class="dashboard-sidebar">
-                <section class="camera-info" data-role="camera-info">
+                <section class="camera-info">
                     <div class="camera-info__group">
                         <dl class="camera-metrics">
-                            <div><dt>밀집도</dt><dd data-role="metric-density">0.78</dd></div>
-                            <div><dt>변화율</dt><dd data-role="metric-change" class="positive">+6%/분</dd></div>
-                            <div><dt>가속도</dt><dd data-role="metric-accel" class="positive">+2%/분²</dd></div>
-                            <div><dt>위험 지속</dt><dd data-role="metric-duration">00:04:12</dd></div>
+                            <div>
+                                <dt>위치</dt>
+                                <dd th:text="${primaryCamera != null && primaryCamera.location() != null ? primaryCamera.location() : '중앙로비 동 9F (예시)'}">
+                                    중앙로비 동 9F (예시)
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>혼잡도</dt>
+                                <dd>
+                                    <span class="metric-value">0.78</span>
+                                    <span class="metric-note">예시: 실시간 혼잡 지수</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>증감률</dt>
+                                <dd>
+                                    <span class="metric-value positive">+6%/분</span>
+                                    <span class="metric-note">예시: 최근 5분 대비</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>관측 시간</dt>
+                                <dd>
+                                    <span class="metric-value">00:04:12</span>
+                                    <span class="metric-note">예시: 스트림 유지 시간</span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt>원본 주소</dt>
+                                <dd>
+                                    <a th:if="${primaryCamera != null}"
+                                       th:href="${primaryCamera.streamUrl()}"
+                                       target="_blank" rel="noopener" class="camera-link">
+                                        원본 보기
+                                    </a>
+                                    <span th:if="${primaryCamera == null}">샘플 스트림</span>
+                                </dd>
+                            </div>
                         </dl>
-                        <div class="camera-tags" data-role="camera-tags">
-                            <span class="chip chip--warning">피크 타임</span>
-                            <span class="chip chip--ai">AI 감지 12건</span>
+                        <div class="camera-tags">
+                            <span class="chip chip--warning">혼잡 시간 (예시)</span>
+                            <span class="chip chip--ai">AI 경보 12건 (예시)</span>
                         </div>
                     </div>
                     <div class="camera-info__group">
-                        <p class="camera-info__message" data-role="camera-message">주출입구 혼잡 · 보안팀 확인 필요</p>
+                        <p class="camera-info__message">
+                            스트리밍은 즉시 재생되며, 혼잡도·이벤트 분석은 추후 업데이트 예정입니다. 아래는 표시될 데이터 형태 예시입니다.
+                        </p>
                         <div class="camera-info__timeline">
-                            <h3>최근 스냅샷 타임라인</h3>
-                            <ol data-role="camera-timeline">
-                                <li><time>14:32:00</time> 밀집도 0.78 · 위험 지속 4분</li>
-                                <li><time>14:31:30</time> 입장 대기열 20명 감지</li>
-                                <li><time>14:31:00</time> 이동 속도 감소</li>
+                            <h3>분석 타임라인 (예시)</h3>
+                            <ol>
+                                <li><time>14:32:00</time> 혼잡도 0.78 · 대기열 4열</li>
+                                <li><time>14:31:30</time> 보행 속도 20% 감소</li>
+                                <li><time>14:31:00</time> 이동 가속도 감소</li>
                             </ol>
                         </div>
                     </div>
                     <div class="camera-list-panel">
                         <h2 class="camera-list-panel__title">전체 카메라</h2>
-                        <ul class="camera-list" data-role="camera-list">
+                        <ul class="camera-list">
+                            <li class="camera-list__item camera-list__item--empty"
+                                th:if="${#lists.isEmpty(streamingCameras)}">
+                                등록된 YouTube Live 카메라가 없습니다.
+                            </li>
+                            <li th:each="camera : ${streamingCameras}"
+                                class="camera-list__item"
+                                th:classappend="${primaryCamera != null and primaryCamera.id() == camera.id()} ? ' camera-list__item--active' : ''"
+                                th:attr="data-camera-id=${camera.id()}">
+                                <a class="camera-list__link"
+                                   th:href="@{/(cameraId=${camera.id()})}">
+                                    <div class="camera-list__meta">
+                                        <span class="camera-list__name" th:text="${camera.name()}">본관 로비</span>
+                                        <span class="camera-list__location"
+                                              th:text="${camera.location() != null ? camera.location() : '위치 정보 없음'}">본관 1층</span>
+                                    </div>
+                                    <span class="camera-list__status camera-list__status--normal">YouTube</span>
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </section>
                 <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
-                    <h2 id="trend-title">시간대별 경보 추이</h2>
+                    <h2 id="trend-title">시간대별 알림 추이</h2>
                     <div class="alert-trend__bars" aria-hidden="true">
                         <span style="--height:35%"></span>
                         <span style="--height:42%"></span>
@@ -180,7 +269,7 @@
                         <span style="--height:38%"></span>
                         <span style="--height:30%"></span>
                     </div>
-                    <p class="alert-trend__note">14시대 최고치 · 16시 이후 완만 하락 예상</p>
+                    <p class="alert-trend__note">알림 데이터 연결 후 자동으로 채워집니다.</p>
                 </article>
             </aside>
         </div>

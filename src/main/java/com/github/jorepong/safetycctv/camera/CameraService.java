@@ -1,6 +1,8 @@
 package com.github.jorepong.safetycctv.camera;
 
+import com.github.jorepong.safetycctv.dashboard.DashboardCameraView;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,5 +39,12 @@ public class CameraService {
         long warning = cameraRepository.countByStatus(CameraStatus.WARNING);
         long offline = cameraRepository.countByStatus(CameraStatus.OFFLINE);
         return new CameraSummary(total, healthy, warning, offline);
+    }
+
+    public List<DashboardCameraView> fetchYoutubeCameras() {
+        return cameraRepository.findAllByOrderByCreatedAtDesc().stream()
+            .map(DashboardCameraView::from)
+            .flatMap(Optional::stream)
+            .toList();
     }
 }
