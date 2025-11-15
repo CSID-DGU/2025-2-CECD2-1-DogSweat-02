@@ -1,6 +1,6 @@
 package com.github.jorepong.safetycctv.map;
 
-import com.github.jorepong.safetycctv.camera.Camera;
+import com.github.jorepong.safetycctv.entity.Camera;
 import com.github.jorepong.safetycctv.camera.CameraStatus;
 import java.util.Optional;
 
