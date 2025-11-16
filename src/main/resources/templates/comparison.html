@@ -6,7 +6,6 @@
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/comparison.css}">
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-        <script defer th:src="@{/js/cameradata.js}"></script>
         <script defer th:src="@{/js/comparison.js}"></script>
     </th:block>
 </head>
@@ -89,5 +88,8 @@
         </div>
     </div>
 </section>
+<script th:inline="javascript">
+    window.cameraData = /*[[${cameraListData}]]*/ [];
+</script>
 </body>
 </html>

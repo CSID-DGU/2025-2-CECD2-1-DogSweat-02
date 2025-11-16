@@ -252,17 +252,18 @@
 }
 
 .dashboard-page .camera-stage,
-.dashboard-page .camera-info,
 .dashboard-page .alerts-panel,
-.dashboard-page .alert-trend {
+.dashboard-page .alert-trend,
+.dashboard-page .camera-list-panel,
+.dashboard-page .info-panel {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: calc(var(--radius) + 4px);
     box-shadow: var(--shadow);
-    padding: clamp(18px, 5vw, 26px);
+    padding: clamp(18px, 4vw, 22px);
     display: flex;
     flex-direction: column;
-    gap: clamp(14px, 3vw, 22px);
+    gap: clamp(14px, 3vw, 18px);
 }
 
 .dashboard-page .camera-stage__header {
@@ -409,37 +410,6 @@
     color: #ffffff;
 }
 
-.dashboard-page .camera-info__group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-stack);
-}
-
-.dashboard-page .camera-metrics {
-    display: grid;
-    gap: 10px;
-    margin: 0;
-}
-
-.dashboard-page .camera-metrics div {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-weight: 700;
-    color: var(--ink);
-}
-
-.dashboard-page .camera-metrics dt {
-    font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-
-.dashboard-page .camera-metrics dd {
-    margin: 0;
-}
-
 .dashboard-page .camera-tags {
     display: flex;
     flex-wrap: wrap;
@@ -458,6 +428,7 @@
     font-size: 12px;
     font-weight: 800;
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .dashboard-page .chip--ai {
@@ -487,18 +458,13 @@
 .dashboard-page .camera-info__message {
     color: var(--ink-2);
     line-height: 1.6;
+    font-weight: 600;
 }
 
 .dashboard-page .camera-info__timeline {
     display: flex;
     flex-direction: column;
     gap: 8px;
-}
-
-.dashboard-page .camera-info__timeline h3 {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ink);
 }
 
 .dashboard-page .camera-info__timeline ol {
@@ -515,11 +481,6 @@
     font-weight: 700;
     color: var(--ink);
     margin-right: 6px;
-}
-
-.dashboard-page .camera-list-panel {
-    border-top: 1px solid var(--border);
-    padding-top: var(--gap-stack);
 }
 
 .dashboard-page .camera-list-panel__title {
@@ -624,9 +585,13 @@
 }
 
 .dashboard-page .camera-link {
-    color: var(--brand-strong);
+    color: var(--brand);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 13px;
+}
+.dashboard-page .camera-link:hover {
     text-decoration: underline;
-    font-weight: 600;
 }
 
 .dashboard-page .bbox {
@@ -720,6 +685,46 @@
     color: var(--muted);
 }
 
+.dashboard-page .chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.dashboard-page .chip--hidden {
+    display: none;
+}
+
+.dashboard-page .chip-duration {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--risk);
+}
+
+.dashboard-page .chip-duration--hidden {
+    display: none;
+}
+
+.dashboard-page .alerts-item__camera {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.dashboard-page .alerts-item__camera strong {
+    font-size: 13px;
+    color: var(--ink);
+}
+
+.dashboard-page .alerts-item__camera span {
+    font-size: 12px;
+    color: var(--muted);
+}
+
 .dashboard-page .alerts-item--high {
     border-left-color: var(--risk);
 }
@@ -738,24 +743,161 @@
 
 .dashboard-page .alert-trend__bars {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
+    grid-template-columns: repeat(12, 1fr);
     gap: 8px;
-    height: 120px;
-    align-items: flex-end;
+    height: 140px;
+    /* Alignment is now handled inside the bar item */
 }
 
-.dashboard-page .alert-trend__bars span {
+.dashboard-page .alert-trend__bar-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    height: 100%;
+    text-align: center;
+}
+
+.dashboard-page .alert-trend__bar {
     display: block;
     width: 100%;
-    height: var(--height);
-    border-radius: 6px 6px 0 0;
-    background: linear-gradient(180deg, rgba(91, 142, 249, 0.65), rgba(43, 110, 242, 0.55));
+    min-width: 16px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, var(--accent), var(--brand));
+    transition: height 0.3s ease;
+}
+
+.dashboard-page .alert-trend__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
 }
 
 .dashboard-page .alert-trend__note {
     font-size: 13px;
     color: var(--muted);
 }
+
+/* --- NEW STYLES FOR REFACTORED SIDEBAR (V2) --- */
+.camera-details-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-grid);
+}
+
+.info-panel {
+    gap: 16px;
+}
+
+.info-panel__title {
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-panel__body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.camera-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin: 0;
+}
+
+.camera-metrics__main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 4px;
+    padding: 16px 0;
+}
+
+.camera-metrics__main dt {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.camera-metrics__main dd {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.camera-metrics__main .metric-value {
+    font-size: clamp(40px, 8vw, 56px);
+    font-weight: 900;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-left: 0;
+}
+
+.camera-metrics__main .metric-note {
+    font-size: 13px; /* Slightly larger than before for readability, but still less prominent than value */
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.camera-metrics__sub {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+}
+
+.camera-metrics__sub > div {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.camera-metrics__sub dt {
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.camera-metrics__sub dd {
+    margin: 0;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.info-panel-placeholder {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 4px);
+    box-shadow: var(--shadow);
+    padding: 48px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: var(--muted);
+    font-weight: 600;
+    line-height: 1.6;
+}
+.camera-metrics__sub .metric-full-width {
+    grid-column: 1 / -1; /* Span all columns */
+}
+/* --- END OF NEW STYLES --- */
+
 
 @media (max-width: 1200px) {
     .dashboard-page .camera-rotation {
@@ -787,8 +929,70 @@
     }
 }
 
-@media (max-width: 560px) {
-    .dashboard-page .alert-trend__bars {
-        grid-template-columns: repeat(4, 1fr);
+@keyframes flash-green {
+    50% {
+        background-color: rgba(22, 163, 74, 0.2);
     }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.flash-green {
+    animation: flash-green 0.8s ease-out;
+}
+
+@keyframes flash-red {
+    50% {
+        background-color: rgba(220, 38, 38, 0.2);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.flash-red {
+    animation: flash-red 0.8s ease-out;
+}
+
+.chip--sm {
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+.camera-list__meta {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.camera-list__name,
+.camera-list__location {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-page .camera-list__link .chip {
+    flex-shrink: 0;
+}
+
+.dashboard-page .camera-view figcaption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 6px 12px;
+    font-size: 12px;
+    background: rgba(15, 23, 42, 0.8);
+    color: #ffffff;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.dashboard-page .camera-view:hover figcaption {
+    opacity: 1;
+    pointer-events: auto;
 }

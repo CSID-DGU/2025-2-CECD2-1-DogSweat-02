@@ -1,17 +1,16 @@
 (() => {
     "use strict";
 
-    const STATUS_META = {
-        HEALTHY: { className: "normal", label: "정상" },
-        WARNING: { className: "warning", label: "주의" },
-        OFFLINE: { className: "offline", label: "오프라인" }
+    const LEVEL_META = {
+        DANGER: { className: "danger", label: "위험" },
+        CAUTION: { className: "caution", label: "주의" },
+        FREE: { className: "free", label: "여유" },
+        NO_DATA: { className: "no-data", label: "데이터 없음" }
     };
-
-    const FALLBACK_STATUS = STATUS_META.HEALTHY;
+    const FALLBACK_LEVEL = LEVEL_META.NO_DATA;
     const MAP_INIT_MAX_ATTEMPTS = 20;
     const MAP_INIT_RETRY_DELAY = 150;
     const LOCATE_TARGET_ZOOM = 16;
-    const LOCATE_HINT_DELAY = 500;
 
     const rawCameras = Array.isArray(window.safetyCameras) ? window.safetyCameras : [];
     const cameras = rawCameras
@@ -26,8 +25,7 @@
         markers: new Map(),
         userMarker: null,
         mapInitAttempts: 0,
-        isLocating: false,
-        locateHintTimer: null
+        isLocating: false
     };
 
     const elements = {
@@ -41,12 +39,44 @@
         infoLocation: null,
         infoAddress: null,
         infoChip: null,
+        infoDensity: null,
+        infoUpdated: null,
         infoLatitude: null,
         infoLongitude: null,
+        infoLink: null,
         filterButtons: null,
         filterContainer: null,
         locateMeButton: null
     };
+
+    function normalizeCamera(raw) {
+        if (!raw) {
+            return { id: "" };
+        }
+        const levelKey = typeof raw.level === "string" && LEVEL_META[raw.level]
+            ? raw.level
+            : "NO_DATA";
+        const meta = LEVEL_META[levelKey] ?? FALLBACK_LEVEL;
+        const latitude = toNumber(raw.latitude);
+        const longitude = toNumber(raw.longitude);
+        const latestDensity = toNumber(raw.latestDensity);
+        return {
+            id: raw.id != null ? String(raw.id) : "",
+            name: (raw.name ?? "").trim() || "이름 미상",
+            level: levelKey,
+            levelDisplay: (raw.levelLabel ?? "").trim() || meta.label,
+            className: meta.className,
+            location: (raw.locationZone ?? "").trim(),
+            address: (raw.address ?? "").trim(),
+            latitude,
+            longitude,
+            hasCoordinates: Number.isFinite(latitude) && Number.isFinite(longitude),
+            latestDensity: Number.isFinite(latestDensity) ? latestDensity : null,
+            densityFormatted: (raw.densityFormatted ?? "").trim()
+                || (Number.isFinite(latestDensity) ? latestDensity.toFixed(2) : "--"),
+            updatedAt: raw.updatedAt || null
+        };
+    }
 
     function captureElements() {
         elements.canvas ??= document.getElementById("mapCanvas");
@@ -59,8 +89,11 @@
         elements.infoLocation ??= document.getElementById("infoPanelLocation");
         elements.infoAddress ??= document.getElementById("infoPanelAddress");
         elements.infoChip ??= document.getElementById("infoPanelChip");
+        elements.infoDensity ??= document.getElementById("infoPanelDensity");
+        elements.infoUpdated ??= document.getElementById("infoPanelUpdated");
         elements.infoLatitude ??= document.getElementById("infoPanelLatitude");
         elements.infoLongitude ??= document.getElementById("infoPanelLongitude");
+        elements.infoLink ??= document.getElementById("infoPanelLink");
         elements.filterButtons ??= document.querySelectorAll(".filter-buttons .filter-btn");
         elements.filterContainer ??= document.querySelector(".filter-buttons");
         elements.locateMeButton ??= document.querySelector("[data-role=\"locate-me\"]");
@@ -71,33 +104,17 @@
         return Boolean(elements.canvas);
     }
 
-    function normalizeCamera(raw) {
-        if (!raw) {
-            return { id: "" };
-        }
-        const statusKey = typeof raw.status === "string" && STATUS_META[raw.status]
-            ? raw.status
-            : "HEALTHY";
-        const meta = STATUS_META[statusKey] ?? FALLBACK_STATUS;
-        const latitude = toNumber(raw.latitude);
-        const longitude = toNumber(raw.longitude);
-        return {
-            id: raw.id != null ? String(raw.id) : "",
-            name: (raw.name ?? "").trim() || "이름 미상",
-            status: statusKey,
-            statusDisplay: (raw.statusDisplay ?? "").trim() || meta.label,
-            className: meta.className,
-            location: (raw.locationZone ?? "").trim(),
-            address: (raw.address ?? "").trim(),
-            latitude,
-            longitude,
-            hasCoordinates: Number.isFinite(latitude) && Number.isFinite(longitude)
-        };
-    }
-
     function toNumber(value) {
         const parsed = Number(value);
         return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function levelMeta(level) {
+        return LEVEL_META[level] ?? FALLBACK_LEVEL;
+    }
+
+    function getFilteredCameras(filter = state.filter) {
+        return filter === "ALL" ? cameras : cameras.filter(camera => camera.level === filter);
     }
 
     function formatCoordinate(value, axis) {
@@ -107,22 +124,15 @@
         return `${axis === "lat" ? "위도" : "경도"} ${value.toFixed(6)}`;
     }
 
-    function statusMeta(status) {
-        return STATUS_META[status] ?? FALLBACK_STATUS;
-    }
-
-    function getFilteredCameras(filter = state.filter) {
-        return filter === "ALL" ? cameras : cameras.filter(camera => camera.status === filter);
-    }
-
-    function getDefaultHintMessage(filteredList = getFilteredCameras()) {
-        if (cameras.length === 0) {
-            return "등록된 카메라가 없습니다. 카메라 관리에서 장비를 추가하세요.";
+    function formatUpdated(value) {
+        if (!value) {
+            return "업데이트 정보 없음";
         }
-        if (filteredList.length === 0) {
-            return "선택한 상태의 카메라가 없습니다. 다른 필터를 선택해 보세요.";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
         }
-        return "마커를 클릭하거나 목록에서 카메라를 선택하세요.";
+        return date.toLocaleString("ko-KR", { hour12: false });
     }
 
     function showHint(message, isError = false) {
@@ -131,8 +141,8 @@
             return;
         }
         elements.hint.textContent = message;
+        elements.hint.classList.toggle("map-hint--error", isError);
         elements.hint.hidden = false;
-        elements.hint.classList.toggle("map-hint--error", Boolean(isError));
     }
 
     function hideHint() {
@@ -144,15 +154,18 @@
         elements.hint.classList.remove("map-hint--error");
     }
 
-    function showDefaultHint(filteredList) {
-        showHint(getDefaultHintMessage(filteredList), false);
+    function getDefaultHintMessage(filteredList = getFilteredCameras()) {
+        if (!cameras.length) {
+            return "등록된 카메라가 없습니다. 카메라 관리에서 추가해 주세요.";
+        }
+        if (!filteredList.length) {
+            return "선택한 조건에 해당하는 카메라가 없습니다. 다른 필터를 시도해 보세요.";
+        }
+        return "마커를 클릭하거나 목록에서 카메라를 선택해 주세요.";
     }
 
-    function clearLocateHintTimer() {
-        if (state.locateHintTimer) {
-            clearTimeout(state.locateHintTimer);
-            state.locateHintTimer = null;
-        }
+    function showDefaultHint(filtered) {
+        showHint(getDefaultHintMessage(filtered), false);
     }
 
     function renderList(filtered) {
@@ -166,12 +179,12 @@
             empty.className = "camera-list-empty";
             empty.textContent = state.filter === "ALL"
                 ? "등록된 카메라가 없습니다."
-                : "선택한 상태의 카메라가 없습니다.";
+                : "선택한 조건에 해당하는 카메라가 없습니다.";
             elements.list.appendChild(empty);
             return;
         }
         filtered.forEach(camera => {
-            const meta = statusMeta(camera.status);
+            const meta = levelMeta(camera.level);
             const item = document.createElement("li");
             item.className = "camera-list-item";
             item.dataset.cameraId = camera.id;
@@ -199,16 +212,16 @@
             } else if (camera.address) {
                 location.textContent = camera.address;
             } else if (camera.hasCoordinates) {
-                location.textContent = "상세 위치 정보 없음";
+                location.textContent = "자세한 위치 정보 없음";
                 location.classList.add("camera-list-item__location--muted");
             } else {
-                location.textContent = "지도에 표시되지 않습니다 (좌표 미등록)";
+                location.textContent = "지도에 표시할 수 없습니다 (좌표 미등록)";
                 location.classList.add("camera-list-item__location--warning");
             }
 
             const chip = document.createElement("span");
             chip.className = `chip chip--${meta.className}`;
-            chip.textContent = meta.label;
+            chip.textContent = camera.levelDisplay || meta.label;
 
             info.appendChild(name);
             info.appendChild(location);
@@ -252,14 +265,19 @@
         if (!elements.infoPanel) {
             return;
         }
-        const meta = statusMeta(camera.status);
+        const meta = levelMeta(camera.level);
         elements.infoName.textContent = camera.name;
-        elements.infoLocation.textContent = camera.location || "설치 위치 정보 없음";
+        elements.infoLocation.textContent = camera.location || "위치 정보 없음";
         elements.infoAddress.textContent = camera.address || "등록된 주소가 없습니다.";
-        elements.infoChip.textContent = meta.label;
+        elements.infoChip.textContent = camera.levelDisplay || meta.label;
         elements.infoChip.className = `chip chip--${meta.className}`;
+        elements.infoDensity.textContent = camera.densityFormatted || "--";
+        elements.infoUpdated.textContent = formatUpdated(camera.updatedAt);
         elements.infoLatitude.textContent = formatCoordinate(camera.latitude, "lat");
         elements.infoLongitude.textContent = formatCoordinate(camera.longitude, "lng");
+        if (elements.infoLink) {
+            elements.infoLink.href = "/cameras";
+        }
         elements.infoPanel.hidden = false;
     }
 
@@ -271,7 +289,7 @@
     }
 
     function getMarkerIcon(camera, isActive) {
-        const meta = statusMeta(camera.status);
+        const meta = levelMeta(camera.level);
         const classes = ["map-marker", `map-marker--${meta.className}`];
         if (isActive) {
             classes.push("is-active");
@@ -301,21 +319,46 @@
         if (!state.map) {
             return;
         }
-        const availableIds = new Set(
-            filtered.filter(camera => camera.hasCoordinates).map(camera => camera.id)
-        );
+        const filteredSet = new Set(filtered.map(camera => camera.id));
         state.markers.forEach((marker, cameraId) => {
-            marker.setMap(availableIds.has(cameraId) ? state.map : null);
+            marker.setMap(filteredSet.has(cameraId) ? state.map : null);
         });
     }
 
-    function panToCamera(cameraId) {
-        if (!state.map) {
+    function createMarkers(mapInstance, camerasWithCoords) {
+        camerasWithCoords.forEach(camera => {
+            const marker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(camera.latitude, camera.longitude),
+                map: mapInstance,
+                icon: getMarkerIcon(camera, false)
+            });
+            state.markers.set(camera.id, marker);
+            naver.maps.Event.addListener(marker, "click", () => {
+                selectCamera(camera.id, { pan: false });
+            });
+        });
+    }
+
+    function fitMapToMarkers(mapInstance, camerasWithCoords) {
+        if (!camerasWithCoords.length) {
             return;
         }
-        const marker = state.markers.get(cameraId);
-        if (marker) {
-            state.map.panTo(marker.getPosition());
+        if (camerasWithCoords.length === 1) {
+            const camera = camerasWithCoords[0];
+            mapInstance.setCenter(new naver.maps.LatLng(camera.latitude, camera.longitude));
+            mapInstance.setZoom(16);
+            return;
+        }
+        const bounds = camerasWithCoords.reduce((acc, camera) => {
+            const position = new naver.maps.LatLng(camera.latitude, camera.longitude);
+            if (!acc) {
+                return new naver.maps.LatLngBounds(position, position);
+            }
+            acc.extend(position);
+            return acc;
+        }, null);
+        if (bounds) {
+            mapInstance.fitBounds(bounds);
         }
     }
 
@@ -340,6 +383,15 @@
         highlightActiveListItem(null);
         refreshMarkerIcons();
         showDefaultHint();
+    }
+
+    function panToCamera(cameraId) {
+        const camera = cameraById.get(cameraId);
+        if (!camera || !state.map || !camera.hasCoordinates) {
+            return;
+        }
+        state.map.panTo(new naver.maps.LatLng(camera.latitude, camera.longitude));
+        state.map.setZoom(LOCATE_TARGET_ZOOM);
     }
 
     function applyFilter(filter) {
@@ -384,7 +436,10 @@
             if (!item) {
                 return;
             }
-            selectCamera(item.dataset.cameraId, { pan: true });
+            const { cameraId } = item.dataset;
+            if (cameraId) {
+                selectCamera(cameraId, { pan: true });
+            }
         });
     }
 
@@ -398,32 +453,6 @@
         });
     }
 
-    function getUserMarkerIcon() {
-        return {
-            content: "<div class=\"map-user-marker\"><span class=\"map-user-marker__pulse\"></span><span class=\"map-user-marker__dot\"></span></div>",
-            anchor: new naver.maps.Point(12, 12)
-        };
-    }
-
-    function ensureUserMarker() {
-        if (!state.map) {
-            return null;
-        }
-        if (!state.userMarker) {
-            state.userMarker = new naver.maps.Marker({
-                position: state.map.getCenter(),
-                map: state.map,
-                icon: getUserMarkerIcon(),
-                clickable: false,
-                zIndex: 2000
-            });
-        } else if (!state.userMarker.getMap()) {
-            state.userMarker.setMap(state.map);
-            state.userMarker.setIcon(getUserMarkerIcon());
-        }
-        return state.userMarker;
-    }
-
     function bindLocateMe() {
         captureElements();
         const button = elements.locateMeButton;
@@ -432,54 +461,27 @@
         }
         if (!navigator.geolocation) {
             button.disabled = true;
-            button.title = "브라우저가 현재 위치 기능을 지원하지 않습니다.";
             return;
         }
         button.addEventListener("click", () => {
             if (state.isLocating) {
                 return;
             }
-            if (!state.map) {
-                showHint("지도가 준비 중입니다. 잠시 후 다시 시도하세요.", true);
-                return;
-            }
             state.isLocating = true;
             button.classList.add("is-busy");
             button.setAttribute("aria-busy", "true");
-
-            clearLocateHintTimer();
-            state.locateHintTimer = window.setTimeout(() => {
-                showHint("현재 위치를 확인하는 중입니다...");
-            }, LOCATE_HINT_DELAY);
-
             navigator.geolocation.getCurrentPosition(
-                ({ coords }) => {
-                    const coord = new naver.maps.LatLng(coords.latitude, coords.longitude);
-                    state.map.panTo(coord);
-                    if (state.map.getZoom() < LOCATE_TARGET_ZOOM) {
-                        state.map.setZoom(LOCATE_TARGET_ZOOM);
-                    }
-                    const userMarker = ensureUserMarker();
-                    if (userMarker) {
-                        userMarker.setPosition(coord);
-                        userMarker.setMap(state.map);
-                    }
-                    clearLocateHintTimer();
-                    hideHint();
+                (position) => {
                     state.isLocating = false;
                     button.classList.remove("is-busy");
                     button.removeAttribute("aria-busy");
+                    placeUserMarker(position.coords.latitude, position.coords.longitude);
                 },
-                error => {
-                    console.error("Geolocation error:", error);
-                    const message = error.code === error.PERMISSION_DENIED
-                        ? "위치 권한이 거부되었습니다."
-                        : "현재 위치를 가져올 수 없습니다.";
-                    clearLocateHintTimer();
-                    showHint(message, true);
+                () => {
                     state.isLocating = false;
                     button.classList.remove("is-busy");
                     button.removeAttribute("aria-busy");
+                    showHint("현재 위치를 확인할 수 없습니다.", true);
                 },
                 {
                     enableHighAccuracy: true,
@@ -491,63 +493,29 @@
         button.dataset.bound = "true";
     }
 
-    function initUI() {
-        if (!hasMapContext()) {
+    function placeUserMarker(lat, lng) {
+        if (!state.map || !Number.isFinite(lat) || !Number.isFinite(lng)) {
             return;
         }
-        bindFilterEvents();
-        bindListEvents();
-        bindInfoPanelEvents();
-        bindLocateMe();
-        applyFilter(state.filter);
-    }
-
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initUI);
-    } else {
-        initUI();
-    }
-
-    function createMarkers(mapInstance, camerasWithCoords) {
-        camerasWithCoords.forEach(camera => {
-            const marker = new naver.maps.Marker({
-                position: new naver.maps.LatLng(camera.latitude, camera.longitude),
-                map: mapInstance,
-                icon: getMarkerIcon(camera, false)
-            });
-            state.markers.set(camera.id, marker);
-            naver.maps.Event.addListener(marker, "click", () => {
-                selectCamera(camera.id, { pan: false });
-            });
-        });
-    }
-
-    function fitMapToMarkers(mapInstance, camerasWithCoords) {
-        if (!camerasWithCoords.length) {
-            return;
+        if (state.userMarker) {
+            state.userMarker.setMap(null);
         }
-        if (camerasWithCoords.length === 1) {
-            const camera = camerasWithCoords[0];
-            mapInstance.setCenter(new naver.maps.LatLng(camera.latitude, camera.longitude));
-            mapInstance.setZoom(16);
-            return;
-        }
-        const bounds = camerasWithCoords.reduce((acc, camera) => {
-            const position = new naver.maps.LatLng(camera.latitude, camera.longitude);
-            if (!acc) {
-                return new naver.maps.LatLngBounds(position, position);
+        state.userMarker = new naver.maps.Marker({
+            position: new naver.maps.LatLng(lat, lng),
+            map: state.map,
+            icon: {
+                content: "<div class=\"map-user-marker\"><span class=\"map-user-marker__pulse\"></span><span class=\"map-user-marker__dot\"></span></div>",
+                anchor: new naver.maps.Point(12, 12)
             }
-            acc.extend(position);
-            return acc;
-        }, null);
-        if (bounds) {
-            mapInstance.fitBounds(bounds);
-        }
+        });
+        state.map.panTo(new naver.maps.LatLng(lat, lng));
+        state.map.setZoom(LOCATE_TARGET_ZOOM);
+        showHint("현재 위치를 지도에 표시했습니다.", false);
     }
 
     function scheduleMapRetry() {
         if (state.mapInitAttempts >= MAP_INIT_MAX_ATTEMPTS) {
-            showHint("지도를 불러오지 못했습니다. 네트워크 상태와 API 키를 확인하세요.", true);
+            showHint("지도를 불러오지 못했습니다. 네트워크 상태를 확인해 주세요.", true);
             return;
         }
         state.mapInitAttempts += 1;
@@ -586,15 +554,15 @@
             state.userMarker = null;
         }
         state.isLocating = false;
-        clearLocateHintTimer();
         if (elements.locateMeButton) {
             elements.locateMeButton.classList.remove("is-busy");
             elements.locateMeButton.removeAttribute("aria-busy");
+            elements.locateMeButton.disabled = false;
         }
 
         const camerasWithCoords = cameras.filter(camera => camera.hasCoordinates);
         if (!camerasWithCoords.length) {
-            showHint("좌표가 등록된 카메라가 없습니다. 카메라 관리에서 위치를 설정하세요.", true);
+            showHint("좌표가 등록된 카메라가 없습니다. 카메라 정보에서 위치를 입력해 주세요.", true);
         } else {
             createMarkers(state.map, camerasWithCoords);
             fitMapToMarkers(state.map, camerasWithCoords);
@@ -604,8 +572,21 @@
         }
         updateMarkersVisibility(getFilteredCameras());
         bindLocateMe();
-        if (elements.locateMeButton && navigator.geolocation) {
-            elements.locateMeButton.disabled = false;
-        }
     };
+
+    function initUI() {
+        captureElements();
+        if (elements.filterButtons) {
+            bindFilterEvents();
+        }
+        bindListEvents();
+        bindInfoPanelEvents();
+        applyFilter(state.filter);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initUI);
+    } else {
+        initUI();
+    }
 })();

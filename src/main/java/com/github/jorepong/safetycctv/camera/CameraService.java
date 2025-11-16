@@ -1,7 +1,12 @@
 package com.github.jorepong.safetycctv.camera;
 
 import com.github.jorepong.safetycctv.dashboard.DashboardCameraView;
+import com.github.jorepong.safetycctv.entity.AnalysisLog;
 import com.github.jorepong.safetycctv.entity.Camera;
+import com.github.jorepong.safetycctv.repository.AnalysisLogRepository;
+import com.github.jorepong.safetycctv.repository.DetectedObjectRepository;
+import com.github.jorepong.safetycctv.repository.SafetyAlertRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -14,9 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class CameraService {
 
     private final CameraRepository cameraRepository;
+    private final AnalysisLogRepository analysisLogRepository;
+    private final DetectedObjectRepository detectedObjectRepository;
+    private final SafetyAlertRepository safetyAlertRepository;
 
     public List<Camera> fetchAll() {
         return cameraRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public Optional<Camera> findById(Long id) {
+        return id == null ? Optional.empty() : cameraRepository.findById(id);
     }
 
     @Transactional
@@ -29,9 +41,37 @@ public class CameraService {
         if (cameraId == null) {
             return;
         }
-        if (cameraRepository.existsById(cameraId)) {
-            cameraRepository.deleteById(cameraId);
+        if (!cameraRepository.existsById(cameraId)) {
+            return;
         }
+        // Remove dependent records to satisfy FK constraints before deleting the camera itself.
+        detectedObjectRepository.deleteByAnalysisLogCameraId(cameraId);
+        analysisLogRepository.deleteByCameraId(cameraId);
+        safetyAlertRepository.deleteByCameraId(cameraId);
+        cameraRepository.deleteById(cameraId);
+    }
+
+    // New method to update training status
+    @Transactional
+    public void updateTrainingStatus(Long cameraId, TrainingStatus trainingStatus) {
+        if (cameraId == null || trainingStatus == null) {
+            return;
+        }
+        cameraRepository.findById(cameraId).ifPresent(camera -> {
+            TrainingStatus previousStatus = camera.getTrainingStatus();
+            if (trainingStatus == TrainingStatus.READY) {
+                if (previousStatus != TrainingStatus.READY) {
+                    LocalDateTime readySince = analysisLogRepository.findFirstByCameraIdOrderByTimestampDesc(cameraId)
+                        .map(AnalysisLog::getTimestamp)
+                        .orElse(LocalDateTime.now());
+                    camera.setTrainingReadyAt(readySince);
+                }
+            } else {
+                camera.setTrainingReadyAt(null);
+            }
+            camera.setTrainingStatus(trainingStatus);
+            cameraRepository.save(camera);
+        });
     }
 
     public CameraSummary summarize() {
@@ -46,6 +86,12 @@ public class CameraService {
         return cameraRepository.findAllByOrderByCreatedAtDesc().stream()
             .map(DashboardCameraView::from)
             .flatMap(Optional::stream)
+            .toList();
+    }
+
+    public List<CameraListView> listView() {
+        return cameraRepository.findAllByOrderByCreatedAtDesc().stream()
+            .map(CameraListView::from)
             .toList();
     }
 }

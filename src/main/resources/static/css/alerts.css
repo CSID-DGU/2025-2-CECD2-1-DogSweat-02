@@ -12,7 +12,7 @@
 }
 
 .alerts-page {
-    background-color: var(--page-bg);
+    background-color: transparent;
     color: var(--text-main);
     font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     min-height: 100%;
@@ -129,12 +129,13 @@
 }
 
 .level-chip {
-    display: inline-block;
+    display: inline-flex;
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
     font-weight: 700;
     font-size: 12px;
     text-align: center;
+    white-space: nowrap;
 }
 
 .level-chip--danger {
@@ -145,6 +146,11 @@
 .level-chip--warning {
     background-color: #ffedd5;
     color: #9a3412;
+}
+
+.level-chip--info {
+    background-color: #e0f2fe;
+    color: #0369a1;
 }
 
 .pagination {

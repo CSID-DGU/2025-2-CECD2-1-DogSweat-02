@@ -63,6 +63,18 @@ public class AnalysisLog {
     private Double densityAcceleration;
 
     /**
+     * The path to the raw captured frame image stored in the shared storage.
+     */
+    @Column(length = 512)
+    private String rawImagePath;
+
+    /**
+     * The path to the annotated image (with bounding boxes) stored in the shared storage.
+     */
+    @Column(length = 512)
+    private String annotatedImagePath;
+
+    /**
      * A list of all individual objects detected in this analysis frame.
      * This relationship is cascaded, meaning operations on AnalysisLog will propagate to its DetectedObjects.
      */
