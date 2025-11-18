@@ -15,41 +15,83 @@
         <header class="analysis-header">
             <div class="analysis-header__meta">
                 <p class="breadcrumbs">관제 &gt; 상세 분석</p>
-                <div class="analysis-title-row">
-                    <h1 class="title" data-role="camera-name">카메라 이름</h1>
-                    <div class="chip status-chip chip--neutral" data-role="camera-status">상태</div>
+                <div class="analysis-title-row" th:if="${selectedCamera}">
+                    <h1 class="title" th:text="${selectedCamera.name}">카메라 이름</h1>
+                    <div class="chip status-chip"
+                         th:classappend="${cameraAnalytics != null ? 'chip--' + cameraAnalytics.level().tone() : 'chip--neutral'}"
+                         th:text="${cameraAnalytics != null ? cameraAnalytics.level().label() : '데이터 없음'}">상태
+                    </div>
                 </div>
-                <p class="subtitle" data-role="camera-location">카메라 위치</p>
+                <p th:if="${selectedCamera}" class="subtitle"
+                   th:text="${selectedCamera.address != null and !selectedCamera.address.isEmpty() ? selectedCamera.address : selectedCamera.locationZone}">
+                    카메라 위치
+                </p>
             </div>
             <div class="analysis-header__actions">
                 <label class="camera-selector">
                     <span>카메라 선택</span>
                     <select data-role="camera-select"
                             aria-label="상세 분석 대상 카메라"
-                            th:attr="disabled=${analysisCameraData == null or #lists.isEmpty(analysisCameraData)}"></select>
+                            onchange="window.location.href = '/analysis?cameraId=' + this.value"
+                            th:disabled="${allCameras == null or #lists.isEmpty(allCameras)}">
+                        <option th:if="${allCameras == null or #lists.isEmpty(allCameras)}" value="">사용 가능한 카메라 없음</option>
+                        <option th:each="camera : ${allCameras}"
+                                th:value="${camera.id}"
+                                th:text="${camera.name}"
+                                th:selected="${selectedCamera != null and selectedCamera.id == camera.id}"></option>
+                    </select>
                 </label>
             </div>
         </header>
 
-        <div class="analysis-empty" th:if="${analysisCameraData == null or #lists.isEmpty(analysisCameraData)}">
-            등록된 카메라의 분석 데이터가 아직 없습니다. AI 분석이 수집되면 자동으로 채워집니다.
+        <div class="analysis-empty" th:if="${selectedCamera == null}">
+            <p>등록된 카메라가 없습니다.</p>
+            <a class="btn btn--primary" th:href="@{/cameras/new}">새 카메라 등록하기</a>
         </div>
 
-        <div class="grid">
+        <div class="grid" th:if="${selectedCamera != null}" th:attr="data-selected-camera-id=${selectedCamera.id}">
             <div class="stack">
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">실시간 영상 &amp; AI 분석</div>
-                            <div class="muted" data-role="live-caption">RTSP/HLS · 30초 지연</div>
+                            <div class="card-title">실시간 영상</div>
+                            <div class="muted" th:if="${selectedCamera.streamType.name() == 'YOUTUBE'}">YouTube Live</div>
+                            <div class="muted" th:if="${selectedCamera.streamType.name() != 'YOUTUBE'}">지원하지 않는 스트림</div>
                         </div>
                     </div>
                     <div class="media">
-                        <img id="mediaPoster" alt="라이브 프레임" th:src="@{/img/frame_20251017_214219.jpg}"/>
-                        <canvas id="overlay"></canvas>
-                        <div class="overlay-controls">
-                            <button class="toggle" id="toggleBBox" type="button">객체 영역</button>
-                            <button class="toggle" id="toggleHeat" type="button">히트맵</button>
+                        <div th:if="${selectedCamera.streamType.name() == 'YOUTUBE' and selectedCamera.streamUrl != null}">
+                            <iframe th:src="${#strings.replace(selectedCamera.streamUrl, 'watch?v=', 'embed/') + '?autoplay=1&mute=1&controls=0&showinfo=0&modestbranding=1&disablekb=1&rel=0'}"
+                                    title="YouTube Live"
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    allowfullscreen
+                                    loading="lazy"
+                                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"></iframe>
+                        </div>
+                        <div class="camera-view__display--empty"
+                             th:if="${selectedCamera.streamType.name() != 'YOUTUBE' or selectedCamera.streamUrl == null}"
+                             style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                            <p>실시간 스트림을 표시할 수 없습니다.</p>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="card h-pad">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">최신 분석 스냅샷</div>
+                            <div class="muted">AI 분석을 통해 30초마다 갱신</div>
+                        </div>
+                    </div>
+                    <div class="media">
+                        <img th:if="${latestAnnotatedImagePath}"
+                             id="snapshot-image"
+                             th:src="${latestAnnotatedImagePath}"
+                             alt="최신 분석 스냅샷">
+                        <div th:unless="${latestAnnotatedImagePath}"
+                             class="camera-view__display--empty"
+                             style="display: flex; align-items: center; justify-content: center; height: 100%;">
+                            <p>분석 스냅샷이 없습니다.</p>
                         </div>
                     </div>
                 </article>
@@ -72,7 +114,7 @@
                         </div>
                         <div class="control-group">
                             <span class="control-label">비교</span>
-                            <div class="control-buttons">
+                            <div class="control-buttons" id="compare-buttons-container">
                                 <button class="control-btn" data-compare="yesterday">어제</button>
                                 <button class="control-btn" data-compare="lastWeek">지난주</button>
                             </div>
@@ -83,68 +125,148 @@
                         <p id="analysisChartPlaceholder" class="chart-placeholder">분석 데이터를 불러오는 중입니다.</p>
                     </div>
                 </article>
-            </div>
 
-            <div class="stack stack--aside">
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">현재 상태 요약</div>
-                            <div class="muted" id="statusTimestamp">데이터 없음</div>
+                            <div class="card-title">요일-시간대별 혼잡도 히트맵</div>
+                            <div class="muted">지난 7일간의 시간대별 평균 밀집도</div>
                         </div>
                     </div>
+                    <div class="heat-wrap">
+                        <div class="heatmap-stage" id="congestion-heatmap">
+                            <div class="days-labels">
+                                <div th:each="day : ${#strings.arraySplit('월,화,수,목,금,토,일', ',')}" th:text="${day}"></div>
+                            </div>
+                            <div class="time-labels">
+                                <div th:each="hour : ${#numbers.sequence(0, 23)}" th:text="${hour}"></div>
+                            </div>
+                            <div class="calendar">
+                                <th:block th:each="dayIndex : ${#numbers.sequence(1, 7)}">
+                                    <div th:each="hourIndex : ${#numbers.sequence(0, 23)}"
+                                         class="cal-cell"
+                                         th:attr="data-day=${dayIndex}, data-hour=${hourIndex}">
+                                    </div>
+                                </th:block>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
+
+            <div class="stack stack--aside">
+                <article class="card h-pad" th:if="${cameraAnalytics}">
+                    <div class="card-head">
+                        <div>
+                            <div class="card-title">종합 분석</div>
+                            <div class="muted"
+                                 th:text="${cameraAnalytics.latestTimestamp() != null ? #temporals.format(cameraAnalytics.latestTimestamp(), 'yyyy-MM-dd HH:mm:ss') : '데이터 없음'}">
+                                데이터 없음
+                            </div>
+                        </div>
+                        <div class="chip"
+                             th:classappend="${'chip--' + cameraAnalytics.level().tone()}"
+                             th:text="${cameraAnalytics.level().label()}">상태
+                        </div>
+                    </div>
+
+                    <!-- Main Status (Gauge & Current State) -->
                     <div class="status-overview">
                         <div class="gauge">
                             <svg viewBox="0 0 120 120" aria-hidden="true">
                                 <circle cx="60" cy="60" r="48" fill="none" stroke="#eef2ff" stroke-width="14"></circle>
-                                <circle cx="60" cy="60" r="48" fill="none" stroke="var(--accent)" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="gaugeArc"></circle>
-                                <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
+                                <circle cx="60" cy="60" r="48" fill="none"
+                                        th:stroke="${cameraAnalytics.level().tone() == 'danger' ? '#ef4444' : (cameraAnalytics.level().tone() == 'warning' ? '#f97316' : '#2563eb')}"
+                                        stroke-width="14" stroke-linecap="round"
+                                        th:attr="stroke-dasharray=${(cameraAnalytics.gaugeDensity() ?: 0) * (2 * 3.14159 * 48)} + ' 999'"
+                                        transform="rotate(-90 60 60)"></circle>
+                                <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)"
+                                      th:text="${cameraAnalytics.latestDensity() != null ? #numbers.formatDecimal(cameraAnalytics.latestDensity() * 100, 0, 0) + '%' : '--'}">
+                                    0%
+                                </text>
                             </svg>
                             <div>
-                                <div class="grade" id="grade">등급 없음</div>
+                                <div class="grade" th:text="${cameraAnalytics.level().label()}">등급 없음</div>
                                 <div class="muted">현재 체감 밀집도</div>
                             </div>
                         </div>
                         <div class="status-current">
                             <div>
-                                <p class="status-current__label">현재 밀집도</p>
-                                <p class="status-current__value" id="currentCongestion">0%</p>
+                                <p class="status-current__label">현재 밀집도 (Raw)</p>
+                                <p class="status-current__value"
+                                   th:text="${cameraAnalytics.latestDensity() != null ? #numbers.formatDecimal(cameraAnalytics.latestDensity(), 1, 3) : '--'}">
+                                    0.000
+                                </p>
+                            </div>
+                            <div style="margin-top: 16px;">
+                                <p class="status-current__label">위험 구간 지속 시간</p>
+                                <p class="status-current__value"
+                                   th:text="${cameraAnalytics.timeInDangerFormatted()}">00:00:00</p>
                             </div>
                         </div>
                     </div>
-                    <div class="status-summary">
-                        <div class="status-recent" aria-label="최근 추이">
-                            <div class="status-recent__header">
-                                <p class="status-recent__title">최근 추이</p>
-                                <p class="status-recent__delta"><span class="delta flat" id="sparkDelta">0p 변화</span></p>
-                            </div>
-                            <svg id="statusSpark" aria-hidden="true"></svg>
+
+                    <!-- Trend Analysis (Velocity, Acceleration, ETA) -->
+                    <div class="status-summary" style="margin-top: 16px;">
+                        <div class="card-head" style="margin-bottom: 12px;">
+                            <div class="card-title" style="font-size: 15px;">추세 분석</div>
                         </div>
                         <div class="status-trend">
                             <div class="status-trend__item">
-                                <div class="status-trend__icon" aria-hidden="true">⚠</div>
-                                <div>
-                                    <p class="status-trend__label">위험 구간 지속</p>
-                                    <p class="status-trend__value" id="duration">00:00:00</p>
-                                </div>
-                            </div>
-                            <div class="status-trend__item">
                                 <div class="status-trend__icon" aria-hidden="true">↗</div>
                                 <div>
-                                    <p class="status-trend__label">변화율 · 가속도</p>
-                                    <p class="status-trend__value"><span id="roc">0.0</span>%/min · <span id="acc">0.0</span>%/min²</p>
+                                    <p class="status-trend__label">변화율 (Velocity)</p>
+                                    <p class="status-trend__value">
+                                        <span th:text="${cameraAnalytics.densityVelocityPerMin() != null ? #numbers.formatDecimal(cameraAnalytics.densityVelocityPerMin(), 1, 4) : '--'}">0.0</span>
+                                        <th:block th:with="velocity=${cameraAnalytics.densityVelocityPerMin()}">
+                                            <span th:if="${velocity != null}"
+                                                  class="chip"
+                                                  th:styleappend="${
+                                                      'margin-left: 8px; font-size: 11px; padding: 2px 8px;' +
+                                                      (velocity < -0.05 ? 'background-color: #dbeafe; color: #1e40af;' :
+                                                      (velocity < -0.005 ? 'background-color: #e0e7ff; color: #3730a3;' : ''))
+                                                  }"
+                                                  th:classappend="${
+                                                      velocity > 0.05 ? 'chip--danger' :
+                                                      velocity > 0.005 ? 'chip--warning' : 'chip--neutral'
+                                                  }"
+                                                  th:text="${
+                                                      velocity > 0.05 ? '빠른 증가' :
+                                                      velocity > 0.005 ? '완만한 증가' :
+                                                      velocity < -0.05 ? '빠른 감소' :
+                                                      velocity < -0.005 ? '완만한 감소' : '안정'
+                                                  }">
+                                            </span>
+                                        </th:block>
+                                    </p>
                                 </div>
                             </div>
                             <div class="status-trend__item">
+                                <div class="status-trend__icon" aria-hidden="true">⏩</div>
+                                <div>
+                                    <p class="status-trend__label">변화 가속도 (Acceleration)</p>
+                                    <p class="status-trend__value">
+                                        <span th:text="${cameraAnalytics.densityAccelerationPerMin2() != null ? #numbers.formatDecimal(cameraAnalytics.densityAccelerationPerMin2(), 1, 5) : '--'}">0.0</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="status-trend__item" style="flex-basis: 100%;">
                                 <div class="status-trend__icon" aria-hidden="true">⏱</div>
                                 <div>
-                                    <p class="status-trend__label">ETA</p>
-                                    <p class="status-trend__value" id="etaValue">예측 정보 없음</p>
+                                    <p class="status-trend__label">위험 도달 시간 (ETA)</p>
+                                    <p class="status-trend__value"
+                                       th:text="${cameraAnalytics.etaMessage() != null ? cameraAnalytics.etaMessage() : '예측 정보 없음'}">
+                                        예측 정보 없음
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </article>
+
+                <div class="info-panel-placeholder" th:unless="${cameraAnalytics}">
+                    <p>분석 데이터가 없습니다.<br>AI 서버가 데이터를 수집하면 자동으로 표시됩니다.</p>
+                </div>
 
                 <article class="card h-pad">
                     <div class="card-head">
@@ -162,46 +284,6 @@
                         <div class="anomaly-details">
                             <p id="anomalyInfo" class="anomaly-details__info">현재 값 <strong id="anomalyCurrentVal">--</strong> (이상 <span id="anomalyNormalRange">--</span>)</p>
                             <p id="anomalyDeviation" class="anomaly-details__deviation">데이터 로딩 중…</p>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="card h-pad">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">종합 위험 지표</div>
-                            <div class="muted">0~100 점수</div>
-                        </div>
-                    </div>
-                    <div class="gauge">
-                        <svg viewBox="0 0 120 120" aria-hidden="true">
-                            <circle cx="60" cy="60" r="48" fill="none" stroke="#f3f4f6" stroke-width="14"></circle>
-                            <circle cx="60" cy="60" r="48" fill="none" stroke="#ef4444" stroke-width="14" stroke-linecap="round" stroke-dasharray="0 999" transform="rotate(-90 60 60)" id="riskArc"></circle>
-                            <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="riskText">0</text>
-                        </svg>
-                        <div class="risk-details">
-                            <div class="grade" id="riskGrade">--</div>
-                            <ul class="risk-factors">
-                                <li id="factorCongestion">
-                                    <span class="factor-label">밀집도</span>
-                                    <span class="factor-value">--%</span>
-                                    <span class="factor-status">--</span>
-                                </li>
-                                <li id="factorRoc">
-                                    <span class="factor-label">변화율</span>
-                                    <span class="factor-value">--</span>
-                                    <span class="factor-status">--</span>
-                                </li>
-                                <li id="factorDuration">
-                                    <span class="factor-label">위험 구간</span>
-                                    <span class="factor-value">--:--:--</span>
-                                    <span class="factor-status">--</span>
-                                </li>
-                                <li id="factorAnomaly">
-                                    <span class="factor-label">이상 패턴</span>
-                                    <span class="factor-status">--</span>
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 </article>
@@ -228,9 +310,7 @@
         </div>
     </div>
 </section>
-<script th:inline="javascript">
-    window.analysisCameraData = /*[[${analysisCameraData}]]*/ [];
-</script>
+
 </body>
 </html>
 

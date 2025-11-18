@@ -61,7 +61,12 @@ public class SafetyAlert {
     /**
      * The ID of the analysis log that is directly associated with this alert, if applicable.
      */
+    @Column(name = "analysis_log_id", insertable = false, updatable = false)
     private Long analysisLogId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "analysis_log_id")
+    private AnalysisLog analysisLog;
 
     /**
      * A flag indicating whether this alert has been acknowledged or resolved by an operator.

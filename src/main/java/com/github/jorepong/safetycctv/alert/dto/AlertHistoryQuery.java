@@ -15,7 +15,9 @@ public record AlertHistoryQuery(
     Long cameraId,
     String search,
     LocalDateTime start,
-    LocalDateTime end
+    LocalDateTime end,
+    Double minDensity,
+    Double maxDensity
 ) {
 
     public static AlertHistoryQuery of(
@@ -26,7 +28,9 @@ public record AlertHistoryQuery(
         Long cameraId,
         String search,
         String start,
-        String end
+        String end,
+        Double minDensity,
+        Double maxDensity
     ) {
         int resolvedPage = page != null && page >= 0 ? page : 0;
         int resolvedSize = size != null && size > 0 ? Math.min(size, 100) : 15;
@@ -43,7 +47,9 @@ public record AlertHistoryQuery(
             cameraId,
             search != null ? search.trim() : null,
             startTime,
-            endTime
+            endTime,
+            minDensity,
+            maxDensity
         );
     }
 
@@ -63,6 +69,7 @@ public record AlertHistoryQuery(
         return switch (property) {
             case "cameraName" -> Sort.by(direction, "cameraName");
             case "level" -> Sort.by(direction, "severity");
+            case "density" -> Sort.by(direction, "density");
             default -> Sort.by(direction, "timestamp");
         };
     }

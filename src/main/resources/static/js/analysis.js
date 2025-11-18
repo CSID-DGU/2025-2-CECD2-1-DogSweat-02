@@ -1,310 +1,334 @@
-﻿const toneColors = {
-    danger: '#ef4444',
-    warning: '#f97316',
-    neutral: '#2563eb'
-};
-
-const gaugeLength = 2 * Math.PI * 48; // circle circumference for gauge arcs
-
-const formatDensity = (value) => (typeof value === 'number' ? value.toFixed(2) : '--');
-
-const formatTimestamp = (value) => {
-    if (!value) return '데이터 없음';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return value;
-    }
-    return date.toLocaleString('ko-KR', { hour12: false });
-};
-
-const formatDuration = (seconds) => {
-    if (!seconds || seconds <= 0) return '00:00:00';
-    const s = Math.floor(seconds);
-    const h = String(Math.floor(s / 3600)).padStart(2, '0');
-    const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-    const ss = String(s % 60).padStart(2, '0');
-    return `${h}:${m}:${ss}`;
-};
-
-const minutesFromSeconds = (seconds) => {
-    if (!seconds || seconds <= 0) return null;
-    return Math.ceil(seconds / 60);
-};
-
-const toNumber = (value, fallback = 0) => (typeof value === 'number' && !Number.isNaN(value) ? value : fallback);
-
 document.addEventListener('DOMContentLoaded', () => {
-    const cameras = Array.isArray(window.analysisCameraData) ? window.analysisCameraData : [];
-    const selectEl = document.querySelector('[data-role="camera-select"]');
-    const nameEl = document.querySelector('[data-role="camera-name"]');
-    const statusChip = document.querySelector('[data-role="camera-status"]');
-    const locationEl = document.querySelector('[data-role="camera-location"]');
-    const liveCaptionEl = document.querySelector('[data-role="live-caption"]');
-    const chartCanvas = document.getElementById('interactiveTimeSeriesChart');
-    const chartPlaceholder = document.getElementById('analysisChartPlaceholder');
-    const statusTimestampEl = document.getElementById('statusTimestamp');
-    const currentDensityEl = document.getElementById('currentCongestion');
-    const durationEl = document.getElementById('duration');
-    const rocEl = document.getElementById('roc');
-    const accEl = document.getElementById('acc');
-    const etaEl = document.getElementById('etaValue');
-    const gaugeArc = document.getElementById('gaugeArc');
-    const gaugeText = document.getElementById('gaugeText');
-    const gradeEl = document.getElementById('grade');
-    const riskArc = document.getElementById('riskArc');
-    const riskText = document.getElementById('riskText');
-    const riskGradeEl = document.getElementById('riskGrade');
-    const factorCongestionValue = document.querySelector('#factorCongestion .factor-value');
-    const factorCongestionStatus = document.querySelector('#factorCongestion .factor-status');
-    const factorRocValue = document.querySelector('#factorRoc .factor-value');
-    const factorRocStatus = document.querySelector('#factorRoc .factor-status');
-    const factorDurationValue = document.querySelector('#factorDuration .factor-value');
-    const factorAnomalyStatus = document.querySelector('#factorAnomaly .factor-status');
-    const alertTableBody = document.querySelector('#alertTable tbody');
-    const sparkSvg = document.getElementById('statusSpark');
-    const sparkDelta = document.getElementById('sparkDelta');
-
-    let trendChart = null;
-
-    if (!cameras.length) {
-        if (selectEl) {
-            selectEl.disabled = true;
-        }
+    const gridEl = document.querySelector('[data-selected-camera-id]');
+    if (!gridEl) {
+        console.log('No selected camera found on this page. Analysis scripts will not run.');
         return;
     }
 
-    populateSelect();
-    renderCamera(Number(selectEl.value || cameras[0].cameraId));
+    const cameraId = gridEl.dataset.selectedCameraId;
 
-    selectEl.addEventListener('change', (event) => {
-        const nextId = Number(event.target.value);
-        renderCamera(Number.isNaN(nextId) ? cameras[0].cameraId : nextId);
-    });
+    // --- Element Selectors ---
+    const chartCanvas = document.getElementById('interactiveTimeSeriesChart');
+    const chartPlaceholder = document.getElementById('analysisChartPlaceholder');
+    const periodControls = document.querySelector('.interactive-chart-controls .control-buttons');
+    const compareControls = document.getElementById('compare-buttons-container');
+    const heatmapContainer = document.getElementById('congestion-heatmap');
+    const alertTableBody = document.querySelector('#alertTable tbody');
+    const anomalyStatusEl = document.getElementById('anomalyStatus');
+    const anomalyGraphEl = document.querySelector('.anomaly-graph');
+    const anomalyRangeEl = document.getElementById('anomalyRange');
+    const anomalyValueEl = document.getElementById('anomalyValue');
+    const anomalyInfoEl = document.getElementById('anomalyInfo');
+    const anomalyDeviationEl = document.getElementById('anomalyDeviation');
 
-    function populateSelect() {
-        if (!selectEl) {
-            return;
+
+    // --- State ---
+    let trendChart = null;
+    let activePeriod = '2h';
+    let activeCompare = null;
+
+    // --- Helper ---
+    const toISOStringWithTimezone = (date) => {
+        const pad = (num) => String(num).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+    };
+
+    // --- Chart Functions ---
+    const fetchDataForPeriod = async (start, end) => {
+        const url = `/api/v1/cameras/${cameraId}/density-history?start=${toISOStringWithTimezone(start)}&end=${toISOStringWithTimezone(end)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+        return response.json();
+    };
+
+    const updateChart = async () => {
+        if (!chartCanvas || !periodControls || !compareControls) return;
+        chartPlaceholder.textContent = '분석 데이터를 불러오는 중입니다...';
+        chartPlaceholder.hidden = false;
+        chartCanvas.style.display = 'none';
+
+        const now = new Date();
+        let primaryStart = new Date();
+        let periodLabel = "현재";
+
+        switch (activePeriod) {
+            case '24h': primaryStart.setDate(now.getDate() - 1); periodLabel = "오늘"; break;
+            case '7d': primaryStart.setDate(now.getDate() - 7); periodLabel = "이번 주"; break;
+            default: primaryStart.setHours(now.getHours() - 2); break;
         }
-        selectEl.innerHTML = '';
-        cameras.forEach((camera, index) => {
-            const option = document.createElement('option');
-            option.value = camera.cameraId;
-            option.textContent = `${camera.cameraName} (${camera.location || '위치 정보 없음'})`;
 
-            if (index === 0) {
-                option.selected = true;
+        const promises = [fetchDataForPeriod(primaryStart, now)];
+        let compareLabel = null;
+
+        if (activeCompare) {
+            let compareStart = new Date(primaryStart);
+            let compareEnd = new Date(now);
+            if (activeCompare === 'yesterday') {
+                compareStart.setDate(compareStart.getDate() - 1);
+                compareEnd.setDate(compareEnd.getDate() - 1);
+                compareLabel = "어제";
+            } else if (activeCompare === 'lastWeek') {
+                compareStart.setDate(compareStart.getDate() - 7);
+                compareEnd.setDate(compareEnd.getDate() - 7);
+                compareLabel = "지난 주";
             }
-            selectEl.appendChild(option);
-        });
-    }
-
-    function renderCamera(cameraId) {
-        const camera = cameras.find((item) => item.cameraId === cameraId) || cameras[0];
-        if (!camera) {
-            return;
-        }
-        if (selectEl) {
-            selectEl.value = camera.cameraId;
+            promises.push(fetchDataForPeriod(compareStart, compareEnd));
         }
 
-        nameEl.textContent = camera.cameraName;
-        locationEl.textContent = camera.location || '위치 정보 없음';
-        statusChip.textContent = camera.congestionLabel;
-        statusChip.className = `chip status-chip chip--${camera.statusTone || 'neutral'}`;
-        liveCaptionEl.textContent = camera.latestTimestamp
-            ? `마지막 분석 ${formatTimestamp(camera.latestTimestamp)}`
-            : '분석 대기 중';
-
-        updateStatusSummary(camera);
-        updateChart(camera);
-        updateAlerts(camera);
-    }
-
-    function updateStatusSummary(camera) {
-        statusTimestampEl.textContent = formatTimestamp(camera.latestTimestamp);
-        currentDensityEl.textContent = formatDensity(camera.latestDensity);
-        durationEl.textContent = formatDuration(camera.timeInDangerSeconds);
-
-        const velocity = toNumber(camera.densityVelocityPerMin, 0);
-        const acceleration = toNumber(camera.densityAccelerationPerMin2, 0);
-        rocEl.textContent = `${(velocity * 100).toFixed(2)}`;
-        accEl.textContent = `${(acceleration * 100).toFixed(2)}`;
-
-        if (etaEl) {\n            const etaMinutes = minutesFromSeconds(camera.etaSeconds);\n            if (etaMinutes && camera.etaType === 'ENTERING_DANGER') {\n                etaEl.textContent = 약 분 후 '위험' 진입 예상;\n            } else if (etaMinutes && camera.etaType === 'EXITING_DANGER') {\n                etaEl.textContent = 약 분 후 '주의' 복귀 예상;\n            } else if (camera.etaMessage) {\n                etaEl.textContent = camera.etaMessage;\n            } else {\n                etaEl.textContent = '추세 정보를 가져올 수 없습니다.';\n            }\n        }\n\n        const densityValue = toNumber(camera.latestDensity, 0);
-        const toneColor = toneColors[camera.statusTone] || toneColors.neutral;
-        applyArc(gaugeArc, densityValue, toneColor);
-        gaugeText.textContent = `${Math.round(Math.min(Math.max(densityValue, 0), 1) * 100)}%`;
-        gradeEl.textContent = camera.congestionLabel;
-
-        applyArc(riskArc, densityValue, '#ef4444');
-        riskText.textContent = `${Math.round(Math.min(Math.max(densityValue, 0), 1) * 100)}`;
-        riskGradeEl.textContent = camera.congestionLabel;
-
-        if (factorCongestionValue) {
-            factorCongestionValue.textContent = `${Math.round(Math.min(Math.max(densityValue, 0), 1) * 100)}%`;
-        }
-        if (factorCongestionStatus) {
-            factorCongestionStatus.textContent = camera.congestionLabel;
-        }
-        if (factorRocValue) {
-            factorRocValue.textContent = `${(velocity * 100).toFixed(2)}%/분`;
-        }
-        if (factorRocStatus) {
-            factorRocStatus.textContent = velocity >= 0 ? '증가' : '완화';
-        }
-        if (factorDurationValue) {
-            factorDurationValue.textContent = formatDuration(camera.timeInDangerSeconds);
-        }
-        if (factorAnomalyStatus) {
-            factorAnomalyStatus.textContent = '데이터 준비 중';
-        }
-
-        renderSpark(camera);
-    }
-
-    function applyArc(element, value, color) {
-        if (!element) {
-            return;
-        }
-        const normalized = Math.min(Math.max(value || 0, 0), 1);
-        element.setAttribute('stroke-dasharray', `${normalized * gaugeLength} ${gaugeLength}`);
-        element.style.stroke = color;
-    }
-
-    function updateChart(camera) {
-        if (!chartCanvas || !Chart) {
-            return;
-        }
-        const hasSeries = camera.hasData && Array.isArray(camera.densitySeries) && camera.densitySeries.length;
-        if (!hasSeries) {
-            if (trendChart) {
-                trendChart.destroy();
-                trendChart = null;
+        try {
+            const [primaryData, compareData] = await Promise.all(promises);
+            if (!primaryData || primaryData.length === 0) {
+                chartPlaceholder.textContent = '해당 기간에 대한 분석 데이터가 없습니다.';
+                return;
             }
-            chartCanvas.style.display = 'none';
-            if (chartPlaceholder) {
-                chartPlaceholder.hidden = false;
+            const datasets = [{
+                label: periodLabel,
+                data: processDataWithGaps(primaryData),
+                borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                tension: 0.1, fill: true, pointRadius: 0, borderWidth: 2
+            }];
+            if (compareData) {
+                datasets.push({
+                    label: compareLabel,
+                    data: processDataWithGaps(compareData),
+                    borderColor: '#94a3b8', backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                    tension: 0.1, borderDash: [5, 5], fill: false, pointRadius: 0, borderWidth: 2
+                });
             }
-            return;
-        }
-
-        const labels = camera.densitySeries.map((point) => formatTimeLabel(point.timestamp));
-        const values = camera.densitySeries.map((point) => toNumber(point.density, 0));
-        chartCanvas.style.display = 'block';
-        if (chartPlaceholder) {
+            renderChart(datasets, primaryData);
             chartPlaceholder.hidden = true;
+            chartCanvas.style.display = 'block';
+        } catch (error) {
+            console.error('Failed to fetch or render chart:', error);
+            chartPlaceholder.textContent = '차트 데이터를 불러오는 데 실패했습니다.';
         }
+    };
 
-        if (trendChart) {
-            trendChart.data.labels = labels;
-            trendChart.data.datasets[0].data = values;
-            trendChart.update();
-            return;
+    const processDataWithGaps = (data) => {
+        if (!data || data.length < 2) return data.map(p => p.density);
+        const GAP_THRESHOLD_SECONDS = 120;
+        const processed = [data[0].density];
+        for (let i = 1; i < data.length; i++) {
+            const prevTime = new Date(data[i - 1].timestamp);
+            const currTime = new Date(data[i].timestamp);
+            if (((currTime - prevTime) / 1000) > GAP_THRESHOLD_SECONDS) processed.push(null);
+            processed.push(data[i].density);
         }
+        return processed;
+    };
+
+    const renderChart = (datasets, primaryData) => {
+        const labels = primaryData.map(point => new Date(point.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
+        if (trendChart) trendChart.destroy();
+        const dataMax = isFinite(Math.max(...primaryData.map(p => p.density))) ? Math.max(...primaryData.map(p => p.density)) : 0;
+        const suggestedCeiling = Math.max(dataMax * 1.2, 0.5);
 
         trendChart = new Chart(chartCanvas, {
             type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        data: values,
-                        borderColor: '#2563eb',
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        tension: 0.3,
-                        fill: true,
-                        pointRadius: 0,
-                        borderWidth: 2
-                    }
-                ]
-            },
+            data: { labels, datasets },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: { intersect: false, mode: 'index' },
-                plugins: { legend: { display: false } },
-                scales: {
-                    y: { beginAtZero: true, suggestedMax: 1 },
-                    x: { ticks: { autoSkip: true } }
-                }
+                responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' },
+                plugins: {
+                    legend: { display: datasets.length > 1 },
+                    tooltip: { callbacks: { label: (c) => `${c.dataset.label || ''}: 밀집도 ${c.parsed.y.toFixed(3)}` } }
+                },
+                scales: { y: { beginAtZero: true, suggestedMax: suggestedCeiling }, x: { ticks: { autoSkip: true, maxTicksLimit: 10 } } }
             }
         });
-    }
+    };
 
-    function updateAlerts(camera) {
-        if (!alertTableBody) {
-            return;
-        }
-        const alerts = Array.isArray(camera.stageAlerts) ? camera.stageAlerts : [];
-        alertTableBody.innerHTML = '';
-        if (!alerts.length) {
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 3;
-            cell.textContent = '표시할 경보가 없습니다.';
-            row.appendChild(cell);
-            alertTableBody.appendChild(row);
-            return;
-        }
+    // --- Heatmap Functions ---
+    const createTooltip = () => {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'heatmap-tooltip';
+        document.body.appendChild(tooltip);
+        return tooltip;
+    };
 
-        alerts.forEach((alert) => {
-            const row = document.createElement('tr');
-            const timeCell = document.createElement('td');
-            timeCell.textContent = alert.timestamp ? formatTimestamp(alert.timestamp) : '-';
-            const typeCell = document.createElement('td');
-            typeCell.textContent = alert.title || '-';
-            const messageCell = document.createElement('td');
-            messageCell.textContent = alert.message || '-';
-            row.append(timeCell, typeCell, messageCell);
-            alertTableBody.appendChild(row);
+    const tooltip = createTooltip();
+
+    const getColorForDensity = (density) => {
+        if (density <= 0) return '#ebedf0';
+        const maxDensity = 0.8;
+        const normalized = Math.min(density, maxDensity) / maxDensity;
+        const hue = Math.round(150 * (1 - normalized));
+        const saturation = 70 + (normalized * 25);
+        const lightness = 65 - (normalized * 20);
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    };
+
+    const fetchAndRenderHeatmap = async () => {
+        if (!heatmapContainer) return;
+        const url = `/api/v1/cameras/${cameraId}/congestion-heatmap`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+            const data = await response.json();
+            if (data) {
+                data.forEach(dayData => {
+                    dayData.hourlyAverageDensities.forEach((density, hour) => {
+                        const cell = heatmapContainer.querySelector(`[data-day="${dayData.dayOfWeekIndex}"][data-hour="${hour}"]`);
+                        if (cell) {
+                            cell.style.backgroundColor = getColorForDensity(density);
+                            cell.dataset.tooltipContent = `${dayData.dayOfWeek}요일 ${hour}시 평균: ${density.toFixed(3)}`;
+                        }
+                    });
+                });
+            }
+
+            // Forcefully remove any lingering title attributes to prevent native tooltips
+            heatmapContainer.querySelectorAll('.cal-cell').forEach(cell => {
+                cell.removeAttribute('title');
+            });
+
+        } catch (error) {
+            console.error('Failed to fetch or render heatmap:', error);
+        }
+    };
+
+    const setupHeatmapEventListeners = () => {
+        if (!heatmapContainer) return;
+
+        heatmapContainer.addEventListener('mouseover', (event) => {
+            const cell = event.target.closest('[data-tooltip-content]');
+            if (cell) {
+                tooltip.textContent = cell.dataset.tooltipContent;
+                tooltip.style.display = 'block';
+            }
         });
-    }
 
-    function renderSpark(camera) {
-        if (!sparkSvg || !sparkDelta) {
-            return;
-        }
-        const dataPoints = (camera.recentDensitySnapshots && camera.recentDensitySnapshots.length)
-            ? camera.recentDensitySnapshots
-            : camera.densitySeries;
-        if (!Array.isArray(dataPoints) || !dataPoints.length) {
-            sparkSvg.innerHTML = '';
-            sparkDelta.textContent = '0p 변화';
-            return;
-        }
-        const values = dataPoints.map((point) => toNumber(point.density, 0));
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const range = max - min || 1;
-        const width = 120;
-        const height = 40;
-        const step = values.length > 1 ? width / (values.length - 1) : width;
-        const path = values.map((value, index) => {
-            const x = index * step;
-            const normalized = (value - min) / range;
-            const y = height - normalized * height;
-            return `${index === 0 ? 'M' : 'L'}${x},${y}`;
-        }).join(' ');
-        sparkSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-        sparkSvg.innerHTML = `<path d="${path}" fill="none" stroke="#2563eb" stroke-width="2"/>`;
-        const delta = values[values.length - 1] - values[0];
-        sparkDelta.textContent = `${delta >= 0 ? '+' : ''}${(delta * 100).toFixed(1)}p 변화`;
-        sparkDelta.className = `delta ${delta === 0 ? 'flat' : delta > 0 ? 'positive' : 'negative'}`;
-    }
+        heatmapContainer.addEventListener('mouseout', (event) => {
+            const cell = event.target.closest('[data-tooltip-content]');
+            if (cell) {
+                tooltip.style.display = 'none';
+            }
+        });
 
-    function formatTimeLabel(value) {
-        if (!value) {
-            return '';
+        heatmapContainer.addEventListener('mousemove', (event) => {
+            if (tooltip.style.display === 'block') {
+                // Position the tooltip near the cursor
+                tooltip.style.left = `${event.clientX + 15}px`;
+                tooltip.style.top = `${event.clientY}px`;
+            }
+        });
+    };
+
+
+    // --- Alerts Functions ---
+    const fetchAndRenderAlerts = async () => {
+        if (!alertTableBody) return;
+        const url = `/api/v1/cameras/${cameraId}/alerts?limit=10`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+            const alerts = await response.json();
+            alertTableBody.innerHTML = '';
+            if (!alerts || alerts.length === 0) {
+                alertTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center;">표시할 경보가 없습니다.</td></tr>`;
+                return;
+            }
+            alerts.forEach(alert => {
+                const row = document.createElement('tr');
+                row.classList.add(`alert-row--${alert.severity}`);
+                row.innerHTML = `<td>${new Date(alert.timestamp).toLocaleTimeString('ko-KR')}</td><td>${alert.title}</td><td>${alert.message}</td>`;
+                alertTableBody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Failed to fetch or render alerts:', error);
+            alertTableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--risk);">알림을 불러오는 데 실패했습니다.</td></tr>`;
         }
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
-            return value;
+    };
+
+    // --- Statistical Anomaly Functions ---
+    const fetchAndRenderStatisticalAnomaly = async () => {
+        const elements = [anomalyStatusEl, anomalyGraphEl, anomalyRangeEl, anomalyValueEl, anomalyInfoEl, anomalyDeviationEl];
+        if (elements.some(el => !el)) return;
+
+        const url = `/api/v1/cameras/${cameraId}/statistical-anomaly`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Server responded with status ${response.status}`);
+            const data = await response.json();
+
+            anomalyStatusEl.textContent = data.message;
+            if (!data.isAnalyzable) {
+                anomalyGraphEl.style.display = 'none';
+                anomalyInfoEl.textContent = data.message;
+                anomalyDeviationEl.textContent = `현재 밀집도: ${data.currentDensity ? data.currentDensity.toFixed(3) : '--'}`;
+                anomalyStatusEl.className = 'chip chip--neutral';
+                return;
+            }
+
+            anomalyGraphEl.style.display = 'block';
+            const { currentDensity, averageDensity, stdDeviation, zScore } = data;
+
+            // Visualization logic
+            const graphMin = Math.max(0, averageDensity - 3 * stdDeviation);
+            const graphMax = averageDensity + 3 * stdDeviation;
+            const graphRange = graphMax - graphMin;
+
+            if (graphRange > 0) {
+                const rangeLeft = ((averageDensity - stdDeviation - graphMin) / graphRange) * 100;
+                const rangeWidth = ((2 * stdDeviation) / graphRange) * 100;
+                const valueLeft = ((currentDensity - graphMin) / graphRange) * 100;
+
+                anomalyRangeEl.style.left = `${Math.max(0, rangeLeft)}%`;
+                anomalyRangeEl.style.width = `${Math.min(100, rangeWidth)}%`;
+                anomalyValueEl.style.left = `clamp(0%, ${valueLeft}%, 100%)`;
+            }
+
+            // Update text
+            anomalyInfoEl.innerHTML = `현재 값 <strong>${currentDensity.toFixed(3)}</strong> (정상 범위: ${(averageDensity - stdDeviation).toFixed(2)} ~ ${(averageDensity + stdDeviation).toFixed(2)})`;
+            anomalyDeviationEl.textContent = `평균(${averageDensity.toFixed(2)})으로부터 ${zScore.toFixed(1)} 표준편차`;
+
+            // Update status chip color
+            if (zScore > 2.5) anomalyStatusEl.className = 'chip chip--danger';
+            else if (zScore > 1.5) anomalyStatusEl.className = 'chip chip--warning';
+            else anomalyStatusEl.className = 'chip chip--neutral';
+            anomalyValueEl.classList.toggle('is-anomaly', zScore > 1.5);
+
+        } catch (error) {
+            console.error('Failed to fetch or render statistical anomaly:', error);
+            anomalyStatusEl.textContent = '오류';
+            anomalyInfoEl.textContent = '데이터를 불러오는 데 실패했습니다.';
+            anomalyDeviationEl.textContent = '';
         }
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
-    }
+    };
+
+
+    // --- Initial Setup ---
+    const init = () => {
+        if (!cameraId) return;
+        updateChart();
+        fetchAndRenderHeatmap();
+        fetchAndRenderAlerts();
+        fetchAndRenderStatisticalAnomaly();
+        setupHeatmapEventListeners();
+    };
+
+    periodControls.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-period]');
+        if (!button) return;
+        activePeriod = button.dataset.period;
+        periodControls.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('is-active'));
+        button.classList.add('is-active');
+        updateChart();
+    });
+
+    compareControls.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-compare]');
+        if (!button) return;
+        const compareValue = button.dataset.compare;
+        if (activeCompare === compareValue) {
+            activeCompare = null;
+            button.classList.remove('is-active');
+        } else {
+            activeCompare = compareValue;
+            compareControls.querySelectorAll('[data-compare]').forEach(btn => btn.classList.remove('is-active'));
+            button.classList.add('is-active');
+        }
+        updateChart();
+    });
+
+    init();
 });
-
-
-

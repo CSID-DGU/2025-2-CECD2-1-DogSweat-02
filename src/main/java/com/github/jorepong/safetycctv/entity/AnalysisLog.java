@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.github.jorepong.safetycctv.entity.AnalysisStatus;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +40,14 @@ public class AnalysisLog {
      */
     @Column(nullable = false)
     private LocalDateTime timestamp;
+
+    /**
+     * Indicates if the analysis used a trained perspective map ('READY') or a uniform map ('PENDING')
+     * while accumulating data.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private AnalysisStatus analysisStatus;
 
     /**
      * The final calculated density value (normalized, based on the 2nd semester's algorithm).

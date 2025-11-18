@@ -18,12 +18,13 @@
                         <p class="brand-description">캠퍼스 군중·사고 관제 플랫폼</p>
                     </div>
                 </div>
-                <p class="side-menu__title">관제</p>
+                <p class="side-menu__title">실시간 분석</p>
                 <a th:href="@{/}" th:classappend="${requestURI == '/' ? 'active' : ''}">대시보드</a>
-                <a th:href="@{/analysis}" th:classappend="${#strings.startsWith(requestURI, '/analysis') ? 'active' : ''}">분석</a>
-                <a href="/analysis/comparison" class="side-menu__sub-item" th:classappend="${#strings.startsWith(requestURI, '/analysis/comparison') ? 'active' : ''}">패턴/비교 분석</a>
+                <a th:href="@{/analysis}" th:classappend="${requestURI == '/analysis' ? 'active' : ''}">분석</a>
                 <a th:href="@{/map}" th:classappend="${#strings.startsWith(requestURI, '/map') ? 'active' : ''}">지도</a>
                 <a th:href="@{/alerts}" th:classappend="${#strings.startsWith(requestURI, '/alerts') ? 'active' : ''}">알림 이력</a>
+                <p class="side-menu__title">통계 분석</p>
+                <a th:href="@{/comparison}" th:classappend="${#strings.startsWith(requestURI, '/comparison') ? 'active' : ''}">패턴/비교 분석</a>
                 <p class="side-menu__title">관리</p>
                 <a th:href="@{/cameras}" th:classappend="${#strings.startsWith(requestURI, '/cameras') ? 'active' : ''}">카메라 관리</a>
 

@@ -144,8 +144,15 @@ public class AlertService {
                 }
                 if (end != null && alert.timestamp().isAfter(end)) {
                     continue;
+
                 }
                 if (query.severity() != null && alert.severity() != query.severity()) {
+                    continue;
+                }
+                if (query.minDensity() != null && alert.density() < query.minDensity()) {
+                    continue;
+                }
+                if (query.maxDensity() != null && alert.density() > query.maxDensity()) {
                     continue;
                 }
                 if (search != null && !matchesSearch(camera, alert, search)) {
@@ -214,12 +221,9 @@ public class AlertService {
             return true;
         }
         String cameraName = camera != null && camera.getName() != null ? camera.getName().toLowerCase(Locale.KOREAN) : "";
-        String location = resolveCameraLocation(camera);
-        location = location != null ? location.toLowerCase(Locale.KOREAN) : "";
         String title = alert.title() != null ? alert.title().toLowerCase(Locale.KOREAN) : "";
         String message = alert.message() != null ? alert.message().toLowerCase(Locale.KOREAN) : "";
         return cameraName.contains(keyword)
-            || location.contains(keyword)
             || title.contains(keyword)
             || message.contains(keyword);
     }
@@ -231,9 +235,12 @@ public class AlertService {
             comparator = Comparator.comparing(AlertHistoryPayload::cameraName, Comparator.nullsLast(String::compareToIgnoreCase));
         } else if ("severity".equalsIgnoreCase(property)) {
             comparator = Comparator.comparing(payload -> severityRank(payload.severity()), Comparator.naturalOrder());
+        } else if ("density".equalsIgnoreCase(property)) {
+            comparator = Comparator.comparing(AlertHistoryPayload::density);
         } else {
             comparator = Comparator.comparing(AlertHistoryPayload::timestamp, Comparator.nullsLast(LocalDateTime::compareTo));
         }
+
         if (order.getDirection() == Sort.Direction.DESC) {
             comparator = comparator.reversed();
         }

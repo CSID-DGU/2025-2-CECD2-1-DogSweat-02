@@ -157,16 +157,43 @@ public class WebController {
     }
 
     @GetMapping("/analysis")
-    public String analysisPage(Model model) {
-        Map<Long, CameraAnalyticsSummary> summariesMap = analysisInsightsService.summarizeCameras(cameraService.fetchAll());
-        List<AnalysisCameraPayload> payloads = summariesMap.values().stream()
-            .map(AnalysisCameraPayload::from)
-            .toList();
-        model.addAttribute("analysisCameraData", payloads);
+    public String analysisPage(
+        @RequestParam(value = "cameraId", required = false) Long cameraId,
+        Model model
+    ) {
+        // 1. Fetch all cameras for the selector
+        List<Camera> allCameras = cameraService.fetchAll();
+        model.addAttribute("allCameras", allCameras);
+
+        // 2. Determine the selected camera
+        Camera selectedCamera = allCameras.stream()
+            .filter(c -> Objects.equals(c.getId(), cameraId))
+            .findFirst()
+            .or(() -> allCameras.stream().findFirst())
+            .orElse(null);
+
+        if (selectedCamera == null) {
+            return "analysis"; // No cameras available, render the empty state
+        }
+        model.addAttribute("selectedCamera", selectedCamera);
+
+        // 3. Find the latest annotated image path for the selected camera
+        analysisLogRepository.findFirstByCameraIdOrderByTimestampDesc(selectedCamera.getId())
+            .map(AnalysisLog::getAnnotatedImagePath)
+            .filter(path -> !path.isBlank())
+            .ifPresent(imagePath -> {
+                String webPath = "/media/" + imagePath.replace("\\\\", "/");
+                model.addAttribute("latestAnnotatedImagePath", webPath);
+            });
+
+        // 4. Get analytics for the selected camera
+        analysisInsightsService.summarizeCamera(selectedCamera)
+            .ifPresent(summary -> model.addAttribute("cameraAnalytics", summary));
+
         return "analysis";
     }
 
-    @GetMapping("/analysis/comparison")
+    @GetMapping("/comparison")
     public String comparisonPage(Model model) {
         List<CameraListView> cameraList = cameraService.listView();
         model.addAttribute("cameraListData", cameraList);

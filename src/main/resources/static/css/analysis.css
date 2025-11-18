@@ -400,7 +400,7 @@
 }
 
 .analysis-page .heat-wrap {
-    overflow: hidden;
+    /* overflow: hidden; Removed to allow tooltip to show outside */
 }
 
 .analysis-page .heatmap-stage {
@@ -422,7 +422,7 @@
     font-weight: 800;
     color: var(--ink-2);
     text-align: left;
-    padding-right: 0;
+    padding-right: 8px;
 }
 
 .analysis-page .days-labels > div {
@@ -470,21 +470,6 @@
 .analysis-page .cal-cell:hover {
     transform: translateY(-1px);
     box-shadow: 0 6px 12px rgba(15, 23, 42, 0.08);
-}
-
-.analysis-page .cal-cell:hover::after {
-    content: attr(title);
-    position: absolute;
-    bottom: calc(100% + 4px);
-    left: 50%;
-    transform: translateX(-50%);
-    background: #111827;
-    color: #ffffff;
-    padding: 4px 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    white-space: nowrap;
-    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
 }
 
 .analysis-page .alert {
@@ -900,4 +885,42 @@
 .analysis-page .chart-container {
     position: relative;
     width: 100%;
+}
+
+/* Alert Table Row Styling */
+.analysis-page #alertTable tr {
+    border-left: 4px solid transparent; /* Default transparent border */
+    transition: border-left-color 0.2s ease;
+}
+
+.analysis-page #alertTable tr.alert-row--DANGER,
+.analysis-page #alertTable tr.alert-row--danger {
+    border-left-color: var(--risk); /* Red for DANGER */
+}
+
+.analysis-page #alertTable tr.alert-row--WARNING,
+.analysis-page #alertTable tr.alert-row--warning {
+    border-left-color: #F59E0B; /* Orange for WARNING */
+}
+
+.analysis-page #alertTable tr.alert-row--INFO,
+.analysis-page #alertTable tr.alert-row--info {
+    border-left-color: var(--brand); /* Blue for INFO */
+}
+
+/* Custom Heatmap Tooltip */
+.heatmap-tooltip {
+    position: fixed;
+    display: none;
+    padding: 8px 12px;
+    background-color: var(--ink, #111827);
+    color: var(--panel, #ffffff);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1050;
+    pointer-events: none;
+    box-shadow: var(--shadow, 0 8px 24px rgba(16, 24, 40, 0.05));
+    transition: opacity 0.1s ease;
 }

@@ -61,9 +61,6 @@ public class Camera {
 
     private Double longitude;
 
-    @Column(name = "training_ready_at")
-    private LocalDateTime trainingReadyAt;
-
     // New field for training status
     @Builder.Default
     @Enumerated(EnumType.STRING)
