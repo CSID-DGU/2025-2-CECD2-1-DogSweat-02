@@ -2,6 +2,7 @@ package com.github.jorepong.safetycctv.entity;
 
 import com.github.jorepong.safetycctv.camera.CameraStatus;
 import com.github.jorepong.safetycctv.camera.StreamType;
+import com.github.jorepong.safetycctv.camera.TrainingStatus; // Import new enum
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -60,6 +61,15 @@ public class Camera {
 
     private Double longitude;
 
+    @Column(name = "training_ready_at")
+    private LocalDateTime trainingReadyAt;
+
+    // New field for training status
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private TrainingStatus trainingStatus = TrainingStatus.UNKNOWN; // Initialize with UNKNOWN
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -74,9 +84,8 @@ public class Camera {
         if (this.status == null) {
             this.status = CameraStatus.HEALTHY;
         }
-        if (this.streamType == null) {
-            this.streamType = StreamType.RTSP;
-        }
+        // No need to check streamType here if @Builder.Default is used
+        // No need to check trainingStatus here if @Builder.Default is used
     }
 
     @PreUpdate

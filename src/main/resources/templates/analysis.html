@@ -2,11 +2,10 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
 <head>
-    <title>상세 분석 | E-N-C 캠퍼스 관제</title>
+    <title>상세 분석 | E-N-C 캠퍼스 안전</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/analysis.css}">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-        <script defer th:src="@{/js/cameradata.js}"></script>
         <script defer th:src="@{/js/analysis.js}"></script>
     </th:block>
 </head>
@@ -25,10 +24,16 @@
             <div class="analysis-header__actions">
                 <label class="camera-selector">
                     <span>카메라 선택</span>
-                    <select data-role="camera-select" aria-label="상세 분석 대상 카메라"></select>
+                    <select data-role="camera-select"
+                            aria-label="상세 분석 대상 카메라"
+                            th:attr="disabled=${analysisCameraData == null or #lists.isEmpty(analysisCameraData)}"></select>
                 </label>
             </div>
         </header>
+
+        <div class="analysis-empty" th:if="${analysisCameraData == null or #lists.isEmpty(analysisCameraData)}">
+            등록된 카메라의 분석 데이터가 아직 없습니다. AI 분석이 수집되면 자동으로 채워집니다.
+        </div>
 
         <div class="grid">
             <div class="stack">
@@ -40,10 +45,10 @@
                         </div>
                     </div>
                     <div class="media">
-                        <img id="mediaPoster" alt="라이브 프레임" th:src="@{/img/frame_20251017_214219.jpg}" />
+                        <img id="mediaPoster" alt="라이브 프레임" th:src="@{/img/frame_20251017_214219.jpg}"/>
                         <canvas id="overlay"></canvas>
                         <div class="overlay-controls">
-                            <button class="toggle" id="toggleBBox" type="button">탐지 영역</button>
+                            <button class="toggle" id="toggleBBox" type="button">객체 영역</button>
                             <button class="toggle" id="toggleHeat" type="button">히트맵</button>
                         </div>
                     </div>
@@ -52,8 +57,8 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">대화형 시계열 분석</div>
-                            <div class="muted">기간 및 비교 대상을 선택하여 혼잡도 추이를 분석합니다.</div>
+                            <div class="card-title">시계열 통계 분석</div>
+                            <div class="muted">기간·비교 옵션을 선택해 추이 분석</div>
                         </div>
                     </div>
                     <div class="interactive-chart-controls">
@@ -75,33 +80,8 @@
                     </div>
                     <div class="chart-container" style="height: 320px;">
                         <canvas id="interactiveTimeSeriesChart"></canvas>
+                        <p id="analysisChartPlaceholder" class="chart-placeholder">분석 데이터를 불러오는 중입니다.</p>
                     </div>
-                </article>
-
-                <article class="card h-pad">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">주간 혼잡 패턴</div>
-                            <div class="muted">요일 · 시간대별</div>
-                        </div>
-                    </div>
-                    <div class="heat-wrap">
-                        <div class="heatmap-stage">
-                            <div class="days-labels" id="daysLabels"></div>
-                            <div class="calendar" id="calendar"></div>
-                            <div class="time-labels" id="timeLabels"></div>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="card h-pad">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">예측 기반 경보</div>
-                            <div class="muted">변화율·가속도</div>
-                        </div>
-                    </div>
-                    <div class="alert" id="predictiveAlert">현재 예측 경보 없음.</div>
                 </article>
             </div>
 
@@ -110,7 +90,7 @@
                     <div class="card-head">
                         <div>
                             <div class="card-title">현재 상태 요약</div>
-                            <div class="muted" id="statusTimestamp">—</div>
+                            <div class="muted" id="statusTimestamp">데이터 없음</div>
                         </div>
                     </div>
                     <div class="status-overview">
@@ -121,40 +101,28 @@
                                 <text x="60" y="64" text-anchor="middle" font-size="18" font-weight="800" fill="var(--ink)" id="gaugeText">0%</text>
                             </svg>
                             <div>
-                                <div class="grade" id="grade">위급 —</div>
-                                <div class="muted">시각적 혼잡도 (현재)</div>
+                                <div class="grade" id="grade">등급 없음</div>
+                                <div class="muted">현재 체감 밀집도</div>
                             </div>
                         </div>
                         <div class="status-current">
                             <div>
-                                <p class="status-current__label">현재 혼잡도</p>
+                                <p class="status-current__label">현재 밀집도</p>
                                 <p class="status-current__value" id="currentCongestion">0%</p>
                             </div>
                         </div>
                     </div>
                     <div class="status-summary">
-                        <div class="status-recent" aria-label="최근 15분 추이">
+                        <div class="status-recent" aria-label="최근 추이">
                             <div class="status-recent__header">
-                                <p class="status-recent__title">최근 15분 추이</p>
-                                <p class="status-recent__delta"><span class="delta flat" id="sparkDelta">0p →</span></p>
+                                <p class="status-recent__title">최근 추이</p>
+                                <p class="status-recent__delta"><span class="delta flat" id="sparkDelta">0p 변화</span></p>
                             </div>
                             <svg id="statusSpark" aria-hidden="true"></svg>
                         </div>
-                        <div class="status-compare">
-                            <div class="status-compare__item">
-                                <p class="status-compare__title">어제 같은 시간</p>
-                                <p class="status-compare__delta"><span class="delta" id="deltaYesterday"></span></p>
-                                <p class="status-compare__ref">어제 <span id="compYesterday">—</span></p>
-                            </div>
-                            <div class="status-compare__item">
-                                <p class="status-compare__title">지난주 같은 시간</p>
-                                <p class="status-compare__delta"><span class="delta" id="deltaLastWeek"></span></p>
-                                <p class="status-compare__ref">지난주 <span id="compLastWeek">—</span></p>
-                            </div>
-                        </div>
                         <div class="status-trend">
                             <div class="status-trend__item">
-                                <div class="status-trend__icon" aria-hidden="true">⏱</div>
+                                <div class="status-trend__icon" aria-hidden="true">⚠</div>
                                 <div>
                                     <p class="status-trend__label">위험 구간 지속</p>
                                     <p class="status-trend__value" id="duration">00:00:00</p>
@@ -167,6 +135,13 @@
                                     <p class="status-trend__value"><span id="roc">0.0</span>%/min · <span id="acc">0.0</span>%/min²</p>
                                 </div>
                             </div>
+                            <div class="status-trend__item">
+                                <div class="status-trend__icon" aria-hidden="true">⏱</div>
+                                <div>
+                                    <p class="status-trend__label">ETA</p>
+                                    <p class="status-trend__value" id="etaValue">예측 정보 없음</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </article>
@@ -174,10 +149,10 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">이상 패턴 탐지</div>
-                            <div class="muted">정상 범위 대비</div>
+                            <div class="card-title">이상 패턴 감지</div>
+                            <div class="muted">이상 범위 추정</div>
                         </div>
-                        <div id="anomalyStatus" class="chip chip--neutral">—</div>
+                        <div id="anomalyStatus" class="chip chip--neutral">대기</div>
                     </div>
                     <div class="anomaly-display">
                         <div class="anomaly-graph">
@@ -185,8 +160,8 @@
                             <div id="anomalyValue" class="anomaly-graph__value"></div>
                         </div>
                         <div class="anomaly-details">
-                            <p id="anomalyInfo" class="anomaly-details__info">현재 값 <strong id="anomalyCurrentVal">—</strong> (정상 <span id="anomalyNormalRange">—</span>)</p>
-                            <p id="anomalyDeviation" class="anomaly-details__deviation">데이터 로딩 중...</p>
+                            <p id="anomalyInfo" class="anomaly-details__info">현재 값 <strong id="anomalyCurrentVal">--</strong> (이상 <span id="anomalyNormalRange">--</span>)</p>
+                            <p id="anomalyDeviation" class="anomaly-details__deviation">데이터 로딩 중…</p>
                         </div>
                     </div>
                 </article>
@@ -194,8 +169,8 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">통합 위험도 지수</div>
-                            <div class="muted">0–100 스케일</div>
+                            <div class="card-title">종합 위험 지표</div>
+                            <div class="muted">0~100 점수</div>
                         </div>
                     </div>
                     <div class="gauge">
@@ -218,7 +193,7 @@
                                     <span class="factor-status">--</span>
                                 </li>
                                 <li id="factorDuration">
-                                    <span class="factor-label">위험 지속</span>
+                                    <span class="factor-label">위험 구간</span>
                                     <span class="factor-value">--:--:--</span>
                                     <span class="factor-status">--</span>
                                 </li>
@@ -234,34 +209,17 @@
                 <article class="card h-pad">
                     <div class="card-head">
                         <div>
-                            <div class="card-title">역대 최고 대비 현재</div>
-                            <div class="muted" id="athMeta">—</div>
-                        </div>
-                    </div>
-                    <div class="metric">
-                        <div class="sub">역대 최고치</div>
-                        <div class="k" id="allTimeHigh">—</div>
-                    </div>
-                    <div class="metric metric--spaced">
-                        <div class="sub">현재 대비 비율</div>
-                        <div class="k" id="athRatio">—</div>
-                    </div>
-                </article>
-
-                <article class="card h-pad">
-                    <div class="card-head">
-                        <div>
-                            <div class="card-title">알림 이력</div>
+                            <div class="card-title">최근 알림</div>
                             <div class="muted">최근 10건</div>
                         </div>
                     </div>
                     <table id="alertTable">
                         <thead>
-                            <tr>
-                                <th scope="col">시각</th>
-                                <th scope="col">유형</th>
-                                <th scope="col">메시지</th>
-                            </tr>
+                        <tr>
+                            <th scope="col">시각</th>
+                            <th scope="col">유형</th>
+                            <th scope="col">메시지</th>
+                        </tr>
                         </thead>
                         <tbody></tbody>
                     </table>
@@ -270,5 +228,9 @@
         </div>
     </div>
 </section>
+<script th:inline="javascript">
+    window.analysisCameraData = /*[[${analysisCameraData}]]*/ [];
+</script>
 </body>
 </html>
+

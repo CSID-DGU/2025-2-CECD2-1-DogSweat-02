@@ -2,9 +2,10 @@
 <html lang="ko" xmlns:th="http://www.thymeleaf.org"
       th:replace="~{layout :: layout(~{::title}, ~{::section}, ~{::headResources})}">
 <head>
-    <title>대시보드 | E-N-C 안전 시스템</title>
+    <title>대시보드 | E-N-C 캠퍼스 안전</title>
     <th:block th:fragment="headResources">
         <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+        <script th:src="@{/js/dashboard.js}" defer></script>
     </th:block>
 </head>
 <body>
@@ -13,63 +14,60 @@
         <section class="dashboard-header">
             <div class="dashboard-header__meta">
                 <div>
-                    <p class="dashboard-header__subtitle">등록된 스트리밍 현황</p>
-                    <h1 class="dashboard-header__title">실시간 영상 대시보드</h1>
+                    <p class="dashboard-header__subtitle">등록된 YouTube Live Status</p>
+                    <h1 class="dashboard-header__title">실시간 상황 대시보드</h1>
                 </div>
                 <div class="dashboard-header__timestamp">
                     <span th:text="${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')} + ' KST 기준'">
                         2025-06-05 14:32:18 KST 기준
                     </span>
-                    <span class="timestamp__badge">페이지 진입 시 자동 재생</span>
+                    <span id="training-countdown" class="timestamp__badge timestamp__badge--ai"
+                          th:if="${nextTrainingTime}"
+                          th:data-next-training-time="${#temporals.formatISO(nextTrainingTime)}">
+                        계산 중...
+                    </span>
+                    <span class="timestamp__badge">페이지 진입 후 자동 새로고침</span>
                 </div>
             </div>
-            <p class="dashboard-header__description">
-                등록된 YouTube Live 스트림을 바로 재생합니다. 추후 AI 분석 및 알림 모듈이 연결되면 혼잡도, 이벤트, 스냅샷 정보도 한 화면에서 확인할 수 있습니다.
-            </p>
             <div class="summary-strip">
                 <article class="summary-item">
                     <h2>전체 카메라</h2>
-                    <p class="summary-value"
-                       th:text="${streamingCameras != null and !streamingCameras.isEmpty() ? streamingCameras.size() + '대' : '5대'}">5대</p>
-                    <p class="summary-note"
-                       th:text="${streamingCameras != null and !streamingCameras.isEmpty()
-                                ? 'YouTube Live 등록 수'
-                                : '예시: 가동 4대 · 대기 1대'}">
-                        예시: 가동 4대 · 대기 1대
+                    <p class="summary-value" id="summary-total-cameras"
+                       th:text="${dashboardSummary != null ? dashboardSummary.totalCameras() + '대' : '0대'}">0대</p>
+                    <p class="summary-note" id="summary-streaming-note"
+                       th:text="${dashboardSummary != null ? 'YouTube Live ' + dashboardSummary.streamingCameras() + '대 연결' : '등록된 카메라가 없습니다.'}">
+                        등록된 카메라가 없습니다.
                     </p>
                 </article>
                 <article class="summary-item">
                     <h2>위험 경보</h2>
-                    <p class="summary-value summary-value--danger">1건</p>
-                    <p class="summary-note">예시: 심각 1 · 경미 3</p>
+                    <p class="summary-value summary-value--danger" id="summary-danger-cameras"
+                       th:text="${dashboardSummary != null ? dashboardSummary.camerasInDanger() + '대' : '0대'}">0대</p>
+                    <p class="summary-note">임계치(0.60) 이상 카메라</p>
                 </article>
                 <article class="summary-item">
-                    <h2>AI 분석 이벤트</h2>
-                    <p class="summary-value">5건</p>
-                    <p class="summary-note">예시: 최근 30분 기준</p>
-                </article>
-                <article class="summary-item">
-                    <h2>평균 체류율</h2>
-                    <p class="summary-value">0.38</p>
-                    <p class="summary-note">예시: 지난 주 대비 -5%</p>
+                    <h2>최근 경보</h2>
+                    <p class="summary-value" id="summary-alert-count"
+                       th:text="${dashboardSummary != null ? dashboardSummary.recentAnalysisEvents() + '건' : '0건'}">0건</p>
+                    <p class="summary-note">최근 30분 기준</p>
                 </article>
             </div>
             <div class="rotation-status" role="status">
                 <div>
                     <p class="rotation-status__title">카메라 선택 모드</p>
-                    <p class="rotation-status__note">우측 목록에서 보고 싶은 카메라를 선택하세요. (예시: 자동 순환 30초)</p>
+                    <p class="rotation-status__note">목록에서 보고 싶은 카메라를 선택하세요 (예시: 자동 순환 30초)</p>
                 </div>
                 <div class="rotation-status__controls">
                     <span class="rotation-indicator rotation-indicator--auto">
                         <span th:text="${primaryCamera != null ? 'LIVE' : 'OFF'}">LIVE</span>
                     </span>
                     <span class="rotation-status__interval"
-                          th:text="${primaryCamera != null ? primaryCamera.name() : '재생 가능한 카메라 없음'}">
-                        현재 재생 중인 카메라
+                          th:text="${primaryCamera != null ? primaryCamera.name() : '재생 가능한 카메라가 없습니다'}">
+                        재생 가능한 카메라가 없습니다
                     </span>
                     <div class="rotation-buttons">
                         <a class="rotation-status__action rotation-status__action--mode"
-                           th:href="@{/cameras}">카메라 추가</a>
+                           th:href="@{/cameras}">카메라 등록</a>
                     </div>
                 </div>
             </div>
@@ -77,27 +75,24 @@
 
         <div class="dashboard-grid">
             <main class="dashboard-main">
-                <section class="camera-stage">
+                <section class="camera-stage" th:attr="data-camera-id=${primaryCamera?.id}">
                     <header class="camera-stage__header">
                         <div>
                             <p class="camera-stage__label">카메라</p>
                             <h2>
-                                <span th:if="${primaryCamera != null}"
-                                      th:text="${primaryCamera.name()}">중앙로비 9층 출입구</span>
+                                <span th:if="${primaryCamera != null}" th:text="${primaryCamera.name()}">중앙로비 9층 출입구</span>
                                 <span th:if="${primaryCamera == null}">재생 가능한 카메라가 없습니다</span>
                             </h2>
                             <p class="camera-stage__location">
                                 <span th:if="${primaryCamera != null}"
-                                      th:text="${primaryCamera.location() != null ? primaryCamera.location() : '위치 정보 미등록'}">
-                                    중앙로비 동 9F
+                                      th:text="${primaryCamera.location() != null ? primaryCamera.location() : '위치 정보 없음'}">
+                                    위치 정보 없음
                                 </span>
-                                <span th:if="${primaryCamera == null}">
-                                    대시보드에서 재생할 YouTube Live 카메라를 등록해 주세요.
-                                </span>
+                                <span th:if="${primaryCamera == null}">이 페이지에서 YouTube Live 카메라를 등록해주세요</span>
                             </p>
                         </div>
                         <span class="camera-stage__status"
-                              th:text="${primaryCamera != null ? 'YouTube Live' : '대기'}">YouTube Live</span>
+                              th:text="${primaryCamera != null ? 'YouTube Live' : 'OFF'}">OFF</span>
                     </header>
                     <div class="camera-stage__feeds">
                         <figure class="camera-view camera-view--live" aria-label="실시간 스트림">
@@ -114,166 +109,189 @@
                                 <p>재생 가능한 YouTube Live 카메라가 없습니다.</p>
                                 <a class="btn btn--ghost btn--sm" th:href="@{/cameras}">카메라 등록</a>
                             </div>
-                            <figcaption th:text="${primaryCamera != null ? primaryCamera.name() + ' · 자동 재생 중' : '등록된 카메라 없음'}">
-                                라이브 프레임 · 14:32:18
+                            <figcaption th:text="${primaryCamera != null ? primaryCamera.name() + ' · 자동 순환 재생' : '등록된 카메라 없음'}">
+                                운영 재생
                             </figcaption>
                         </figure>
-                        <figure class="camera-view camera-view--snapshot" aria-label="30초 스냅샷">
-                            <div class="camera-view__display camera-view__display--placeholder">
-                                <p>30초 스냅샷 기능은 준비 중입니다.</p>
-                                <span>AI 분석 모듈과 함께 제공될 예정입니다.</span>
+
+                        <figure class="camera-view camera-view--snapshot" aria-label="30초 간격 스냅샷">
+                            <div id="snapshot-container" class="camera-view__display">
+                                <img th:if="${latestAnnotatedImagePath}"
+                                     id="snapshot-image"
+                                     th:src="${latestAnnotatedImagePath}"
+                                     alt="최신 분석 스냅샷">
+                                <div th:unless="${latestAnnotatedImagePath}" class="camera-view__display--placeholder">
+                                    <p>분석 스냅샷이 없습니다.</p>
+                                    <span>AI 분석이 완료되면 자동으로 표시됩니다.</span>
+                                </div>
                             </div>
-                            <figcaption>스냅샷 모듈 준비중 (예시: 14:32:00 기준)</figcaption>
+                            <figcaption>최신 분석 스냅샷 (30초마다 갱신)</figcaption>
                         </figure>
                     </div>
                 </section>
 
                 <article class="alerts-panel alerts-panel--wide" aria-labelledby="alerts-title">
                     <div class="alerts-panel__header">
-                        <h2 id="alerts-title">최근 알림 (예시)</h2>
-                        <p class="alerts-panel__summary">실제 알림 모듈 연동 시 자동 갱신됩니다.</p>
+                        <h2 id="alerts-title">최근 알림 (실시간)</h2>
+                        <p class="alerts-panel__summary">전체 카메라에서 방금 발생한 경보를 시간순으로 보여줍니다.</p>
                     </div>
-                    <ul class="alerts-list">
-                        <li class="alerts-item alerts-item--high">
-                            <time>14:31:44</time>
+                    <ul class="alerts-list" id="dashboard-alerts-list">
+                        <li th:each="alert : ${recentAlerts}"
+                            th:classappend="${'alerts-item--' + alert.severitySuffix()}"
+                            class="alerts-item">
+                            <time th:text="${#temporals.format(alert.timestamp(), 'HH:mm:ss')}">00:00:00</time>
                             <div>
-                                <p>혼잡도 1단계</p>
-                                <span>밀집도 0.78 · 대기열 4열</span>
-                            </div>
-                        </li>
-                        <li class="alerts-item alerts-item--medium">
-                            <time>14:30:58</time>
-                            <div>
-                                <p>차량진입구 B동</p>
-                                <span>차량 대기열 증가</span>
-                            </div>
-                        </li>
-                        <li class="alerts-item alerts-item--high">
-                            <time>14:28:12</time>
-                            <div>
-                                <p>비상문 개방</p>
-                                <span>화재 센서 감지</span>
-                            </div>
-                        </li>
-                        <li class="alerts-item alerts-item--low">
-                            <time>14:27:05</time>
-                            <div>
-                                <p>물류창고 A동</p>
-                                <span>출입 기록 누락</span>
-                            </div>
-                        </li>
-                        <li class="alerts-item alerts-item--medium">
-                            <time>14:25:41</time>
-                            <div>
-                                <p>주차동 2층</p>
-                                <span>역주행 의심 이동</span>
+                                <div class="alerts-item__camera">
+                                    <strong th:text="${alert.cameraName()}">본관 로비</strong>
+                                    <span th:text="${alert.cameraLocation() != null ? alert.cameraLocation() : '위치 정보 없음'}">위치 정보 없음</span>
+                                </div>
+                                <p th:text="${alert.title()}">알림</p>
+                                <span th:text="${alert.message()}"></span>
                             </div>
                         </li>
                     </ul>
+                    <p class="alerts-panel__summary" id="dashboard-alerts-empty" style="margin-top: 1rem;"
+                       th:hidden="${!#lists.isEmpty(recentAlerts)}">
+                        아직 생성된 경보가 없습니다. AI 분석이 완료되면 자동으로 채워집니다.
+                    </p>
                 </article>
+
             </main>
+
             <aside class="dashboard-sidebar">
-                <section class="camera-info">
-                    <div class="camera-info__group">
-                        <dl class="camera-metrics">
-                            <div>
-                                <dt>위치</dt>
-                                <dd th:text="${primaryCamera != null && primaryCamera.location() != null ? primaryCamera.location() : '중앙로비 동 9F (예시)'}">
-                                    중앙로비 동 9F (예시)
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>혼잡도</dt>
-                                <dd>
-                                    <span class="metric-value">0.78</span>
-                                    <span class="metric-note">예시: 실시간 혼잡 지수</span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>증감률</dt>
-                                <dd>
-                                    <span class="metric-value positive">+6%/분</span>
-                                    <span class="metric-note">예시: 최근 5분 대비</span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>관측 시간</dt>
-                                <dd>
-                                    <span class="metric-value">00:04:12</span>
-                                    <span class="metric-note">예시: 스트림 유지 시간</span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt>원본 주소</dt>
-                                <dd>
-                                    <a th:if="${primaryCamera != null}"
-                                       th:href="${primaryCamera.streamUrl()}"
-                                       target="_blank" rel="noopener" class="camera-link">
-                                        원본 보기
-                                    </a>
-                                    <span th:if="${primaryCamera == null}">샘플 스트림</span>
-                                </dd>
-                            </div>
-                        </dl>
-                        <div class="camera-tags">
-                            <span class="chip chip--warning">혼잡 시간 (예시)</span>
-                            <span class="chip chip--ai">AI 경보 12건 (예시)</span>
-                        </div>
-                    </div>
-                    <div class="camera-info__group">
-                        <p class="camera-info__message">
-                            스트리밍은 즉시 재생되며, 혼잡도·이벤트 분석은 추후 업데이트 예정입니다. 아래는 표시될 데이터 형태 예시입니다.
-                        </p>
-                        <div class="camera-info__timeline">
-                            <h3>분석 타임라인 (예시)</h3>
-                            <ol>
-                                <li><time>14:32:00</time> 혼잡도 0.78 · 대기열 4열</li>
-                                <li><time>14:31:30</time> 보행 속도 20% 감소</li>
-                                <li><time>14:31:00</time> 이동 가속도 감소</li>
-                            </ol>
-                        </div>
-                    </div>
-                    <div class="camera-list-panel">
-                        <h2 class="camera-list-panel__title">전체 카메라</h2>
-                        <ul class="camera-list">
-                            <li class="camera-list__item camera-list__item--empty"
-                                th:if="${#lists.isEmpty(streamingCameras)}">
-                                등록된 YouTube Live 카메라가 없습니다.
-                            </li>
-                            <li th:each="camera : ${streamingCameras}"
-                                class="camera-list__item"
-                                th:classappend="${primaryCamera != null and primaryCamera.id() == camera.id()} ? ' camera-list__item--active' : ''"
-                                th:attr="data-camera-id=${camera.id()}">
-                                <a class="camera-list__link"
-                                   th:href="@{/(cameraId=${camera.id()})}">
-                                    <div class="camera-list__meta">
-                                        <span class="camera-list__name" th:text="${camera.name()}">본관 로비</span>
-                                        <span class="camera-list__location"
-                                              th:text="${camera.location() != null ? camera.location() : '위치 정보 없음'}">본관 1층</span>
-                                    </div>
-                                    <span class="camera-list__status camera-list__status--normal">YouTube</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+                <section class="camera-list-panel">
+                    <h2 class="camera-list-panel__title">전체 카메라</h2>
+                    <ul class="camera-list">
+                        <li class="camera-list__item camera-list__item--empty"
+                            th:if="${#lists.isEmpty(sidebarCameras)}">
+                            등록된 카메라가 없습니다.
+                        </li>
+                        <li th:each="camera : ${sidebarCameras}"
+                            class="camera-list__item"
+                            th:classappend="${primaryCamera != null and primaryCamera.id() == camera.id()} ? ' camera-list__item--active' : ''"
+                            th:attr="data-camera-id=${camera.id()}, data-level=${camera.level().name()}">
+                            <a class="camera-list__link"
+                               th:href="@{/(cameraId=${camera.id()})}">
+                                <div class="camera-list__meta">
+                                    <span class="camera-list__name" th:text="${camera.name()}">본관 로비</span>
+                                    <span class="camera-list__location"
+                                          th:text="${camera.location() != null ? camera.location() : '위치 정보 없음'}">위치 정보 없음</span>
+                                </div>
+                                <!-- PENDING Status Chip Logic -->
+                                <th:block th:if="${camera.trainingStatus == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                    <span class="chip chip--sm chip--info">학습중</span>
+                                </th:block>
+                                <!-- Other Status Chip Logic -->
+                                <th:block th:unless="${camera.trainingStatus == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                    <span class="chip chip--sm"
+                                          th:classappend="${'chip--' + camera.level().tone()}"
+                                          th:text="${camera.level().label()}">Status</span>
+                                </th:block>
+                            </a>
+                        </li>
+                    </ul>
                 </section>
-                <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
-                    <h2 id="trend-title">시간대별 알림 추이</h2>
-                    <div class="alert-trend__bars" aria-hidden="true">
-                        <span style="--height:35%"></span>
-                        <span style="--height:42%"></span>
-                        <span style="--height:48%"></span>
-                        <span style="--height:62%"></span>
-                        <span style="--height:70%"></span>
-                        <span style="--height:52%"></span>
-                        <span style="--height:38%"></span>
-                        <span style="--height:30%"></span>
+
+                <div class="camera-details-group">
+                    <section class="info-panel"
+                             th:if="${primaryCameraAnalytics != null}"
+                             th:attr="data-level=${primaryCameraAnalytics.level().name()}, data-duration-seconds=${primaryCameraAnalytics.timeInDangerSeconds()}, data-danger-since=${primaryCameraAnalytics.timeInDangerSince() != null ? #temporals.format(primaryCameraAnalytics.timeInDangerSince(), 'yyyy-MM-dd''T''HH:mm:ss') : ''}">
+                        <h3 class="info-panel__title">종합 분석</h3>
+                        <div class="info-panel__body">
+                            <div class="camera-tags">
+                                <div class="chip-group">
+                                    <th:block th:if="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                        <span class="chip chip--info">Recent training in progress</span>
+                                    </th:block>
+                                    <th:block th:unless="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                        <span class="chip" id="panel-level-chip"
+                                              th:classappend="${' chip--' + primaryCameraAnalytics.level().tone()}"
+                                              th:text="${primaryCameraAnalytics.level().label()}">Status</span>
+                                        <span class="chip-duration" id="panel-duration-chip"
+                                              th:classappend="${primaryCameraAnalytics.level() != T(com.github.jorepong.safetycctv.analysis.CongestionLevel).DANGER ? ' chip-duration--hidden' : ''}"
+                                              th:text="${'Duration ' + primaryCameraAnalytics.timeInDangerFormatted()}">
+                                            Duration 00:00:00
+                                        </span>
+                                        <span class="chip chip--ai" id="panel-eta-chip"
+                                              th:classappend="${primaryCameraAnalytics.level() == T(com.github.jorepong.safetycctv.analysis.CongestionLevel).DANGER ? ' chip--hidden' : ''}"
+                                              th:text="${primaryCameraAnalytics.etaMessage()}">
+                                            ETA unavailable
+                                        </span>
+                                    </th:block>
+                                </div>
+                            </div>
+                            <dl class="camera-metrics">
+                                <th:block th:if="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                    <div class="camera-metrics__placeholder">
+                                        <p>Training completes soon.<br>Metrics will appear here.</p>
+                                    </div>
+                                </th:block>
+                                <th:block th:unless="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
+                                    <div class="camera-metrics__main">
+                                        <dt>Density</dt>
+                                        <dd>
+                                            <span class="metric-value" id="panel-density"
+                                                  th:text="${primaryCameraAnalytics.latestDensity() != null ? #numbers.formatDecimal(primaryCameraAnalytics.latestDensity(), 1, 2) : '--'}">--</span>
+                                            <span class="metric-note" id="panel-density-time"
+                                                  th:text="${primaryCameraAnalytics.latestTimestamp() != null ? #temporals.format(primaryCameraAnalytics.latestTimestamp(), 'HH:mm:ss') : 'No data'}">
+                                            No data
+                                        </span>
+                                        </dd>
+                                    </div>
+                                    <div class="camera-metrics__sub">
+                                        <div>
+                                            <dt>Density 추세</dt>
+                                            <dd>
+                                                <span id="panel-roc" class="metric-value"
+                                                      th:hidden="${primaryCameraAnalytics.densityVelocityPerMin() == null}"
+                                                      th:with="velocity=${primaryCameraAnalytics.densityVelocityPerMin()}"
+                                                      th:classappend="${velocity != null && velocity < 0 ? 'positive' : 'negative'}">
+                                                    <th:block th:if="${velocity != null}" th:switch="${true}">
+                                                        <span th:case="${velocity > 0.05}">Rapid increase</span>
+                                                        <span th:case="${velocity > 0.005}">Slow increase</span>
+                                                        <span th:case="${velocity < -0.05}">Rapid decrease</span>
+                                                        <span th:case="${velocity < -0.005}">Slow decrease</span>
+                                                        <span th:case="*" class="neutral">Almost steady</span>
+                                                    </th:block>
+                                                </span>
+                                                <span id="panel-roc-empty" class="metric-value neutral"
+                                                      th:hidden="${primaryCameraAnalytics.densityVelocityPerMin() != null}">--</span>
+                                            </dd>
+                                        </div>
+                                    </div>
+                                </th:block>
+                            </dl>
+                        </div>
+                    </section>
+
+                    <div class="info-panel-placeholder"
+                         th:if="${primaryCamera == null or primaryCameraAnalytics == null}">
+                        <p>Select a camera<br>or wait for analytics to load.</p>
                     </div>
-                    <p class="alert-trend__note">알림 데이터 연결 후 자동으로 채워집니다.</p>
+                </div>
+
+                <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
+                    <h2 id="trend-title">Hourly alert trend</h2>
+                    <div class="alert-trend__bars" id="alert-trend-bars">
+                        <div class="alert-trend__bar-item"
+                             th:each="point : ${alertTrend != null ? alertTrend.points : {}}">
+                            <span class="alert-trend__bar"
+                                  th:style="'height:' + (${alertTrend != null && alertTrend.maxCount > 0 ? (point.count * 100 / alertTrend.maxCount) : 0}) + '%;'"
+                                  th:title="${point.hour} + '시 ' + ${point.count} + '건'"></span>
+                            <span class="alert-trend__label"
+                                  th:text="${#numbers.formatInteger(point.hour, 2)}">00</span>
+                        </div>
+                    </div>
+                    <p class="alert-trend__note" id="alert-trend-note"
+                       th:text="${alertTrend != null and !alertTrend.points.isEmpty()} ? 'Alert count by hour in last 12h' : 'No alerts detected in the last 12 hours.'">
+                        No alerts detected in the last 12 hours.
+                    </p>
                 </article>
+
             </aside>
         </div>
     </div>
 </section>
+
 </body>
 </html>

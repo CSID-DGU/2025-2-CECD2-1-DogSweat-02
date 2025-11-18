@@ -29,10 +29,14 @@ public record DashboardCameraView(
             return Optional.empty();
         }
 
+        String location = camera.getAddress() != null && !camera.getAddress().isBlank()
+            ? camera.getAddress()
+            : camera.getLocationZone();
+
         return Optional.of(new DashboardCameraView(
             camera.getId(),
             camera.getName(),
-            camera.getLocationZone(),
+            location,
             camera.getDescription(),
             embedUrl,
             camera.getStreamUrl()

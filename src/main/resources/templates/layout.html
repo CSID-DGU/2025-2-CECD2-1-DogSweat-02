@@ -26,6 +26,9 @@
                 <a th:href="@{/alerts}" th:classappend="${#strings.startsWith(requestURI, '/alerts') ? 'active' : ''}">알림 이력</a>
                 <p class="side-menu__title">관리</p>
                 <a th:href="@{/cameras}" th:classappend="${#strings.startsWith(requestURI, '/cameras') ? 'active' : ''}">카메라 관리</a>
+
+                <p class="side-menu__title">디버그</p>
+                <a th:href="@{/debug/train-perspective-map}" class="side-menu__sub-item">원근맵 학습 실행</a>
             </nav>
             <main class="page-content" th:insert="${content}"></main>
         </div>
