@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchAndRenderAlerts();
     fetchAndRenderCameraListStatus();
     fetchAndRenderSummary();
+    fetchAndRenderSummaryPanels();
 
     // Set up polling intervals to fetch fresh data periodically
     setInterval(() => updateSnapshotImage(cameraId), SNAPSHOT_POLLING_INTERVAL);
@@ -45,6 +46,37 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => fetchAndRenderCameraListStatus(), STATUS_POLLING_INTERVAL);
     setInterval(() => fetchAndRenderSummary(), SUMMARY_POLLING_INTERVAL);
 });
+
+async function fetchAndRenderSummaryPanels() {
+    const hotspotList = document.getElementById('dashboard-hotspotList');
+    const volatilityList = document.getElementById('dashboard-volatilityList');
+    if (!hotspotList || !volatilityList) return;
+
+    try {
+        const response = await fetch('/api/v1/cameras/statistics?days=7');
+        if (!response.ok) throw new Error('통계 정보를 불러오지 못했습니다.');
+        const stats = await response.json();
+
+        // Hotspot List
+        stats.sort((a, b) => b.peakDensity - a.peakDensity);
+        hotspotList.innerHTML = stats.slice(0, 5).map((s, i) => `<li><span class="rank">${i+1}</span><span class="item-name">${s.cameraName}</span><span class="item-value">${(s.peakDensity * 100).toFixed(1)}%</span></li>`).join('');
+        if (stats.length === 0) {
+            hotspotList.innerHTML = '<li>분석 데이터가 없습니다.</li>';
+        }
+
+        // Volatility List
+        stats.sort((a, b) => b.densityStdDev - a.densityStdDev);
+        volatilityList.innerHTML = stats.slice(0, 5).map((s, i) => `<li><span class="rank">${i+1}</span><span class="item-name">${s.cameraName}</span><span class="item-value">${s.densityStdDev.toFixed(3)}</span></li>`).join('');
+        if (stats.length === 0) {
+            volatilityList.innerHTML = '<li>분석 데이터가 없습니다.</li>';
+        }
+
+    } catch (error) {
+        console.error('Failed to render summary panels:', error);
+        hotspotList.innerHTML = '<li>데이터를 불러오는 데 실패했습니다.</li>';
+        volatilityList.innerHTML = '<li>데이터를 불러오는 데 실패했습니다.</li>';
+    }
+}
 
 
 const CONGESTION_LEVEL_ORDER = {
@@ -73,7 +105,7 @@ async function fetchAndRenderCameraListStatus() {
 
             // Handle PENDING status first
             if (cameraStatus.trainingStatus === 'PENDING') {
-                chip.textContent = 'Training';
+                chip.textContent = '학습 중';
                 chip.className = 'chip chip--sm chip--info';
                 listItem.classList.remove('flash-red', 'flash-green');
                 listItem.dataset.level = 'PENDING'; // Update data attribute for consistency
@@ -103,7 +135,7 @@ async function fetchAndRenderCameraListStatus() {
             }
         });
     } catch (error) {
-        console.error('Error fetching camera status list:', error);
+        console.error('카메라 상태 목록을 불러오는 중 오류 발생:', error);
     }
 }
 
@@ -159,7 +191,7 @@ function updateDangerDurationTimer(level, initialSeconds, dangerSince) {
 
     dangerDurationSeconds = baseSeconds;
     const updateText = () => {
-        durationEl.textContent = `Duration ${formatDuration(dangerDurationSeconds)}`;
+        durationEl.textContent = `지속 시간 ${formatDuration(dangerDurationSeconds)}`;
     };
     durationEl.classList.remove('chip-duration--hidden');
     updateText();
@@ -177,7 +209,7 @@ async function updateSnapshotImage(cameraId) {
     try {
         const response = await fetch(`/api/v1/cameras/${cameraId}/latest-snapshot-path`);
         if (!response.ok) {
-            console.warn(`No snapshot found for camera ${cameraId}. Status: ${response.status}`);
+            console.warn(`카메라에 대한 스냅샷을 찾을 수 없습니다 ${cameraId}. 상태: ${response.status}`);
             return;
         }
 
@@ -189,7 +221,7 @@ async function updateSnapshotImage(cameraId) {
         if (!snapshotImage) {
             snapshotImage = document.createElement('img');
             snapshotImage.id = 'snapshot-image';
-            snapshotImage.alt = 'Latest snapshot';
+            snapshotImage.alt = '최신 스냅샷';
 
             const placeholder = snapshotContainer.querySelector('.camera-view__display--placeholder');
             if (placeholder) {
@@ -200,7 +232,7 @@ async function updateSnapshotImage(cameraId) {
 
         snapshotImage.src = `${newImagePath}?t=${Date.now()}`;
     } catch (error) {
-        console.error('Error fetching latest snapshot:', error);
+        console.error('최신 스냅샷을 불러오는 중 오류 발생:', error);
     }
 }
 
@@ -208,13 +240,13 @@ async function fetchAndRenderPanel(cameraId) {
     try {
         const response = await fetch(`/api/v1/cameras/${cameraId}/analytics`);
         if (!response.ok) {
-            console.warn(`Failed to fetch panel data for camera ${cameraId}: ${response.status}`);
+            console.warn(`카메라 패널 데이터를 불러오지 못했습니다 ${cameraId}: ${response.status}`);
             return;
         }
         const data = await response.json();
         renderPanel(data);
     } catch (error) {
-        console.error('Error fetching panel data:', error);
+        console.error('패널 데이터를 불러오는 중 오류 발생:', error);
     }
 }
 
@@ -222,13 +254,13 @@ async function fetchAndRenderAlerts() {
     try {
         const response = await fetch('/api/v1/alerts/recent?limit=10');
         if (!response.ok) {
-            console.warn(`Failed to fetch recent alerts: ${response.status}`);
+            console.warn(`최근 알림을 불러오지 못했습니다: ${response.status}`);
             return;
         }
         const data = await response.json();
         renderAlerts(Array.isArray(data) ? data : []);
     } catch (error) {
-        console.error('Error fetching alerts:', error);
+        console.error('알림을 불러오는 중 오류 발생:', error);
     }
 }
 
@@ -262,15 +294,15 @@ function renderAlerts(alerts) {
 
         const content = document.createElement('div');
         const title = document.createElement('p');
-        title.textContent = alert.title || 'Alert';
+        title.textContent = alert.title || '알림';
         const message = document.createElement('span');
         message.textContent = alert.message || '';
         const cameraMeta = document.createElement('div');
         cameraMeta.className = 'alerts-item__camera';
         const cameraName = document.createElement('strong');
-        cameraName.textContent = alert.cameraName || 'Unknown camera';
+        cameraName.textContent = alert.cameraName || '알 수 없는 카메라';
         const cameraLocation = document.createElement('span');
-        cameraLocation.textContent = alert.cameraLocation || 'Unknown location';
+        cameraLocation.textContent = alert.cameraLocation || '알 수 없는 위치';
         cameraMeta.append(cameraName, cameraLocation);
         content.append(cameraMeta, title, message);
 
@@ -285,7 +317,7 @@ function renderPanel(data) {
     }
     const hasData = data && data.hasData;
 
-    setText('panel-location', hasData ? data.location : 'Unknown location');
+    setText('panel-location', hasData ? data.location : '알 수 없는 위치');
     setText('panel-density', hasData && typeof data.latestDensity === 'number'
         ? data.latestDensity.toFixed(2)
         : '--');
@@ -294,7 +326,7 @@ function renderPanel(data) {
 
     const levelChip = document.getElementById('panel-level-chip');
     if (levelChip) {
-        levelChip.textContent = hasData ? data.congestionLabel : 'Status';
+        levelChip.textContent = hasData ? data.congestionLabel : '상태';
         levelChip.className = `chip chip--${hasData ? data.statusTone : 'neutral'}`;
     }
 
@@ -302,15 +334,15 @@ function renderPanel(data) {
     if (etaChip) {
         if (!hasData || data.congestionLevel === 'DANGER') {
             etaChip.style.display = 'none';
-            etaChip.textContent = 'ETA unavailable';
+            etaChip.textContent = '예상 시간 정보 없음';
         } else {
             etaChip.style.display = 'inline-flex';
             const etaText = data.etaMessage
                 || (data.etaType === 'ENTERING_DANGER' && data.etaSeconds > 0
-                    ? `${Math.ceil(data.etaSeconds / 60)} min to enter danger`
+                    ? `${Math.ceil(data.etaSeconds / 60)}분 후 위험 진입 예상`
                     : data.etaType === 'EXITING_DANGER' && data.etaSeconds > 0
-                        ? `${Math.ceil(data.etaSeconds / 60)} min to exit danger`
-                        : 'No major trend changes detected.');
+                        ? `${Math.ceil(data.etaSeconds / 60)}분 후 위험 해제 예상`
+                        : '주요 추세 변화 감지되지 않음.');
             etaChip.textContent = etaText;
         }
     }
@@ -375,19 +407,19 @@ function updateVelocityText(id, value) {
     el.classList.remove('positive', 'negative', 'neutral');
 
     if (value > 0.05) {
-        el.textContent = 'Rapid increase';
+        el.textContent = '급격한 증가';
         el.classList.add('negative');
     } else if (value > 0.005) {
-        el.textContent = 'Slow increase';
+        el.textContent = '완만한 증가';
         el.classList.add('negative');
     } else if (value < -0.05) {
-        el.textContent = 'Rapid decrease';
+        el.textContent = '급격한 감소';
         el.classList.add('positive');
     } else if (value < -0.005) {
-        el.textContent = 'Slow decrease';
+        el.textContent = '완만한 감소';
         el.classList.add('positive');
     } else {
-        el.textContent = 'Almost steady';
+        el.textContent = '거의 정체';
         el.classList.add('neutral');
     }
 }
@@ -422,13 +454,13 @@ async function fetchAndRenderAlertTrend() {
     try {
         const response = await fetch('/api/v1/alerts/trend');
         if (!response.ok) {
-            console.warn(`Failed to fetch alert trend data: ${response.status}`);
+            console.warn(`알림 추세 데이터를 불러오지 못했습니다: ${response.status}`);
             return;
         }
         const data = await response.json();
         renderAlertTrend(data);
     } catch (error) {
-        console.error('Error fetching alert trend data:', error);
+        console.error('알림 추세 데이터를 불러오는 중 오류 발생:', error);
     }
 }
 
@@ -442,11 +474,11 @@ function renderAlertTrend(data) {
     container.innerHTML = '';
 
     if (!data || !Array.isArray(data.points) || data.points.length === 0) {
-        note.textContent = 'No alerts detected in the last 12 hours.';
+        note.textContent = '지난 12시간 동안 감지된 알림이 없습니다.';
         return;
     }
 
-    note.textContent = 'Hourly alerts across last 12 hours';
+    note.textContent = '지난 12시간 동안의 시간별 알림';
     const points = data.points.slice(-12);
 
     const maxCount = data.maxCount > 0 ? data.maxCount : 1;
@@ -463,7 +495,7 @@ function renderAlertTrend(data) {
         bar.style.height = `${height}%`;
 
         const hourLabel = formatHourLabel(point.hour);
-        const tooltip = `${hourLabel} ${count} alerts`;
+        const tooltip = `${count}개`;
         bar.title = tooltip;
         bar.setAttribute('aria-label', tooltip);
 
@@ -506,13 +538,13 @@ function initializeTrainingCountdown() {
 
     const nextTrainingTimeStr = countdownElement.dataset.nextTrainingTime;
     if (!nextTrainingTimeStr) {
-        countdownElement.textContent = 'Training schedule unknown';
+        countdownElement.textContent = '학습 일정 알 수 없음';
         return;
     }
 
     const targetDate = new Date(nextTrainingTimeStr);
     if (isNaN(targetDate.getTime())) {
-        countdownElement.textContent = 'Invalid schedule';
+        countdownElement.textContent = '유효하지 않은 일정';
         return;
     }
 
@@ -521,7 +553,7 @@ function initializeTrainingCountdown() {
         const remaining = targetDate - now;
 
         if (remaining <= 0) {
-            countdownElement.textContent = 'Waiting for next training...';
+            countdownElement.textContent = '다음 학습 대기 중...';
             clearInterval(countdownInterval);
             return;
         }
@@ -530,7 +562,7 @@ function initializeTrainingCountdown() {
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;
 
-        countdownElement.textContent = `Next perspective-map training in ${minutes}m ${String(seconds).padStart(2, '0')}s`;
+        countdownElement.textContent = `다음 원근 맵 학습까지 ${minutes}분 ${String(seconds).padStart(2, '0')}초`;
     };
 
     const countdownInterval = setInterval(updateCountdown, 1000);
@@ -541,13 +573,13 @@ async function fetchAndRenderSummary() {
     try {
         const response = await fetch('/api/v1/dashboard/summary');
         if (!response.ok) {
-            console.warn(`Failed to fetch dashboard summary: ${response.status}`);
+            console.warn(`대시보드 요약을 불러오지 못했습니다: ${response.status}`);
             return;
         }
         const data = await response.json();
         renderSummaryCards(data);
     } catch (error) {
-        console.error('Error fetching dashboard summary:', error);
+        console.error('대시보드 요약을 불러오는 중 오류 발생:', error);
     }
 }
 

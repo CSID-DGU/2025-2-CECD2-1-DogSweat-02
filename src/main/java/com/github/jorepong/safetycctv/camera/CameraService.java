@@ -58,17 +58,6 @@ public class CameraService {
             return;
         }
         cameraRepository.findById(cameraId).ifPresent(camera -> {
-            TrainingStatus previousStatus = camera.getTrainingStatus();
-            if (trainingStatus == TrainingStatus.READY) {
-                if (previousStatus != TrainingStatus.READY) {
-                    LocalDateTime readySince = analysisLogRepository.findFirstByCameraIdOrderByTimestampDesc(cameraId)
-                        .map(AnalysisLog::getTimestamp)
-                        .orElse(LocalDateTime.now());
-                    camera.setTrainingReadyAt(readySince);
-                }
-            } else {
-                camera.setTrainingReadyAt(null);
-            }
             camera.setTrainingStatus(trainingStatus);
             cameraRepository.save(camera);
         });

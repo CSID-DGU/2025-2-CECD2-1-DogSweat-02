@@ -14,7 +14,7 @@
         <section class="dashboard-header">
             <div class="dashboard-header__meta">
                 <div>
-                    <p class="dashboard-header__subtitle">등록된 YouTube Live Status</p>
+                    <p class="dashboard-header__subtitle">등록된 YouTube Live 상태</p>
                     <h1 class="dashboard-header__title">실시간 상황 대시보드</h1>
                 </div>
                 <div class="dashboard-header__timestamp">
@@ -59,7 +59,7 @@
                 </div>
                 <div class="rotation-status__controls">
                     <span class="rotation-indicator rotation-indicator--auto">
-                        <span th:text="${primaryCamera != null ? 'LIVE' : 'OFF'}">LIVE</span>
+                        <span th:text="${primaryCamera != null ? '실시간' : '연결 끊김'}">LIVE</span>
                     </span>
                     <span class="rotation-status__interval"
                           th:text="${primaryCamera != null ? primaryCamera.name() : '재생 가능한 카메라가 없습니다'}">
@@ -92,7 +92,7 @@
                             </p>
                         </div>
                         <span class="camera-stage__status"
-                              th:text="${primaryCamera != null ? 'YouTube Live' : 'OFF'}">OFF</span>
+                              th:text="${primaryCamera != null ? 'YouTube Live' : '연결 끊김'}">OFF</span>
                     </header>
                     <div class="camera-stage__feeds">
                         <figure class="camera-view camera-view--live" aria-label="실시간 스트림">
@@ -129,6 +129,27 @@
                         </figure>
                     </div>
                 </section>
+
+                <div class="summary-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">주간 최고 혼잡 장소 Top 5</h2>
+                            <p class="card-subtitle">지난 7일간 가장 높은 혼잡도를 기록한 장소</p>
+                        </div>
+                        <div class="card-body">
+                            <ol class="ranked-list" id="dashboard-hotspotList"></ol>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">가장 예측이 어려운 장소 Top 5</h2>
+                            <p class="card-subtitle">혼잡도 변화가 가장 심했던 장소 (변동성 기준)</p>
+                        </div>
+                        <div class="card-body">
+                            <ol class="ranked-list" id="dashboard-volatilityList"></ol>
+                        </div>
+                    </div>
+                </div>
 
                 <article class="alerts-panel alerts-panel--wide" aria-labelledby="alerts-title">
                     <div class="alerts-panel__header">
@@ -201,12 +222,12 @@
                             <div class="camera-tags">
                                 <div class="chip-group">
                                     <th:block th:if="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
-                                        <span class="chip chip--info">Recent training in progress</span>
+                                        <span class="chip chip--info">최근 학습 진행 중</span>
                                     </th:block>
                                     <th:block th:unless="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
                                         <span class="chip" id="panel-level-chip"
                                               th:classappend="${' chip--' + primaryCameraAnalytics.level().tone()}"
-                                              th:text="${primaryCameraAnalytics.level().label()}">Status</span>
+                                              th:text="${primaryCameraAnalytics.level().label()}">상태</span>
                                         <span class="chip-duration" id="panel-duration-chip"
                                               th:classappend="${primaryCameraAnalytics.level() != T(com.github.jorepong.safetycctv.analysis.CongestionLevel).DANGER ? ' chip-duration--hidden' : ''}"
                                               th:text="${'Duration ' + primaryCameraAnalytics.timeInDangerFormatted()}">
@@ -215,7 +236,7 @@
                                         <span class="chip chip--ai" id="panel-eta-chip"
                                               th:classappend="${primaryCameraAnalytics.level() == T(com.github.jorepong.safetycctv.analysis.CongestionLevel).DANGER ? ' chip--hidden' : ''}"
                                               th:text="${primaryCameraAnalytics.etaMessage()}">
-                                            ETA unavailable
+                                            예상 시간 정보 없음
                                         </span>
                                     </th:block>
                                 </div>
@@ -223,24 +244,24 @@
                             <dl class="camera-metrics">
                                 <th:block th:if="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
                                     <div class="camera-metrics__placeholder">
-                                        <p>Training completes soon.<br>Metrics will appear here.</p>
+                                        <p>학습이 곧 완료됩니다.<br>여기에 지표가 표시됩니다.</p>
                                     </div>
                                 </th:block>
                                 <th:block th:unless="${primaryCameraAnalytics.trainingStatus() == T(com.github.jorepong.safetycctv.camera.TrainingStatus).PENDING}">
                                     <div class="camera-metrics__main">
-                                        <dt>Density</dt>
+                                        <dt>밀집도</dt>
                                         <dd>
                                             <span class="metric-value" id="panel-density"
                                                   th:text="${primaryCameraAnalytics.latestDensity() != null ? #numbers.formatDecimal(primaryCameraAnalytics.latestDensity(), 1, 2) : '--'}">--</span>
                                             <span class="metric-note" id="panel-density-time"
-                                                  th:text="${primaryCameraAnalytics.latestTimestamp() != null ? #temporals.format(primaryCameraAnalytics.latestTimestamp(), 'HH:mm:ss') : 'No data'}">
-                                            No data
+                                                  th:text="${primaryCameraAnalytics.latestTimestamp() != null ? #temporals.format(primaryCameraAnalytics.latestTimestamp(), 'HH:mm:ss') : '데이터 없음'}">
+                                            데이터 없음
                                         </span>
                                         </dd>
                                     </div>
                                     <div class="camera-metrics__sub">
                                         <div>
-                                            <dt>Density 추세</dt>
+                                            <dt>밀집도 추세</dt>
                                             <dd>
                                                 <span id="panel-roc" class="metric-value"
                                                       th:hidden="${primaryCameraAnalytics.densityVelocityPerMin() == null}"
@@ -266,12 +287,12 @@
 
                     <div class="info-panel-placeholder"
                          th:if="${primaryCamera == null or primaryCameraAnalytics == null}">
-                        <p>Select a camera<br>or wait for analytics to load.</p>
+                        <p>카메라를 선택하거나<br>분석 데이터 로딩을 기다려주세요.</p>
                     </div>
                 </div>
 
                 <article class="alert-trend alert-trend--wide" aria-labelledby="trend-title">
-                    <h2 id="trend-title">Hourly alert trend</h2>
+                    <h2 id="trend-title">시간별 알림 추세</h2>
                     <div class="alert-trend__bars" id="alert-trend-bars">
                         <div class="alert-trend__bar-item"
                              th:each="point : ${alertTrend != null ? alertTrend.points : {}}">
@@ -283,8 +304,8 @@
                         </div>
                     </div>
                     <p class="alert-trend__note" id="alert-trend-note"
-                       th:text="${alertTrend != null and !alertTrend.points.isEmpty()} ? 'Alert count by hour in last 12h' : 'No alerts detected in the last 12 hours.'">
-                        No alerts detected in the last 12 hours.
+                       th:text="${alertTrend != null and !alertTrend.points.isEmpty()} ? '지난 12시간 동안의 시간별 알림 건수' : '지난 12시간 동안 감지된 알림이 없습니다.'">
+                        지난 12시간 동안 감지된 알림이 없습니다.
                     </p>
                 </article>
 

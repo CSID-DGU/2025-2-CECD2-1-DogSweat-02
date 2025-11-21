@@ -34,4 +34,11 @@ public record CameraAnalyticsSummary(
         long secs = seconds % 60;
         return String.format("%02d:%02d:%02d", hours, minutes, secs);
     }
+
+    public double gaugeDensity() {
+        if (latestDensity == null) {
+            return 0.0;
+        }
+        return Math.min(latestDensity, 1.0);
+    }
 }

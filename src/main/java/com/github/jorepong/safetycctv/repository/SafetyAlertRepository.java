@@ -15,15 +15,9 @@ public interface SafetyAlertRepository extends JpaRepository<SafetyAlert, Long>,
     @Query("""
         SELECT FUNCTION('HOUR', s.timestamp), COUNT(s)
         FROM SafetyAlert s
+        LEFT JOIN s.analysisLog al
         WHERE s.timestamp >= :startTime
-          AND (
-            s.camera.trainingStatus IS NULL
-            OR s.camera.trainingStatus <> com.github.jorepong.safetycctv.camera.TrainingStatus.PENDING
-        )
-          AND (
-            s.camera.trainingReadyAt IS NULL
-            OR s.timestamp >= s.camera.trainingReadyAt
-        )
+        AND (al.id IS NULL OR al.analysisStatus = com.github.jorepong.safetycctv.entity.AnalysisStatus.READY)
         GROUP BY FUNCTION('HOUR', s.timestamp)
         ORDER BY FUNCTION('HOUR', s.timestamp) ASC
         """)

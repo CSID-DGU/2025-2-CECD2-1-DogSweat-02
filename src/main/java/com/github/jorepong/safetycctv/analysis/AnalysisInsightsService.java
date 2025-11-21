@@ -1,20 +1,25 @@
 package com.github.jorepong.safetycctv.analysis;
 
+import com.github.jorepong.safetycctv.analysis.dto.AnalysisLogDetailPayload;
+import com.github.jorepong.safetycctv.analysis.dto.CongestionHeatmapPayload;
+import com.github.jorepong.safetycctv.analysis.dto.DensityPointPayload;
+import com.github.jorepong.safetycctv.analysis.dto.StatisticalAnomalyPayload;
 import com.github.jorepong.safetycctv.camera.CameraRepository;
+import com.github.jorepong.safetycctv.camera.CameraStatisticsPayload;
 import com.github.jorepong.safetycctv.camera.TrainingStatus;
 import com.github.jorepong.safetycctv.dashboard.DashboardCameraView;
 import com.github.jorepong.safetycctv.dashboard.DashboardSummary;
 import com.github.jorepong.safetycctv.entity.AnalysisLog;
+import com.github.jorepong.safetycctv.entity.AnalysisStatus;
 import com.github.jorepong.safetycctv.entity.Camera;
 import com.github.jorepong.safetycctv.repository.AnalysisLogRepository;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.time.format.TextStyle;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,9 +36,133 @@ public class AnalysisInsightsService {
     private static final long ETA_NOTICE_WINDOW_SECONDS = 600;
     private static final int RECENT_SAMPLE_LIMIT = 3;
     private static final int DEFAULT_ALERT_LIMIT = 10;
+    private static final int STATS_MIN_DATA_POINTS = 20;
+    private static final int STATS_HISTORY_WEEKS = 4;
+    private static final int STATS_HOUR_WINDOW = 1;
 
     private final AnalysisLogRepository analysisLogRepository;
     private final CameraRepository cameraRepository;
+
+    public List<CameraStatisticsPayload> getCameraStatistics(int days) {
+        List<Camera> cameras = cameraRepository.findAll();
+
+        return cameras.parallelStream()
+            .map(camera -> {
+                LocalDateTime since = LocalDateTime.now().minusDays(days);
+                
+                List<AnalysisLog> logs = findReadyLogsAsc(camera.getId(), since, null);
+
+                if (logs.isEmpty()) {
+                    return null;
+                }
+
+                List<Double> densities = logs.stream().map(AnalysisLog::getDensity).toList();
+                double peakDensity = densities.stream().mapToDouble(d -> d).max().orElse(0.0);
+
+                double sum = densities.stream().mapToDouble(d -> d).sum();
+                double average = sum / densities.size();
+                double sumOfSquares = densities.stream().mapToDouble(d -> (d - average) * (d - average)).sum();
+                double stdDev = Math.sqrt(sumOfSquares / densities.size());
+
+                return new CameraStatisticsPayload(camera.getId(), camera.getName(), peakDensity, stdDev);
+            })
+            .filter(Objects::nonNull) // Filter out nulls if any
+            .collect(Collectors.toList());
+    }
+
+    public StatisticalAnomalyPayload getStatisticalAnomaly(Long cameraId) {
+        Optional<AnalysisLog> latestLogOpt = analysisLogRepository.findFirstByCameraIdAndAnalysisStatusOrderByTimestampDesc(
+            cameraId,
+            AnalysisStatus.READY
+        );
+        if (latestLogOpt.isEmpty()) {
+            return StatisticalAnomalyPayload.notAnalyzable("현재 데이터 없음", null);
+        }
+        AnalysisLog latestLog = latestLogOpt.get();
+        double currentDensity = latestLog.getDensity();
+        LocalDateTime now = latestLog.getTimestamp();
+
+        int dayOfWeekMysql = (now.getDayOfWeek().getValue() % 7) + 1;
+        int currentHour = now.getHour();
+        LocalDateTime since = now.minusWeeks(STATS_HISTORY_WEEKS);
+
+        List<Double> densities = analysisLogRepository.findHistoricalDensities(
+            cameraId,
+            since,
+            dayOfWeekMysql,
+            Math.max(0, currentHour - STATS_HOUR_WINDOW),
+            Math.min(23, currentHour + STATS_HOUR_WINDOW)
+        );
+
+        if (densities.size() < STATS_MIN_DATA_POINTS) {
+            return StatisticalAnomalyPayload.notAnalyzable("과거 데이터 부족 (" + densities.size() + "개)", currentDensity);
+        }
+
+        double sum = 0.0;
+        for (double d : densities) {
+            sum += d;
+        }
+        double average = sum / densities.size();
+
+        double sumOfSquares = 0.0;
+        for (double d : densities) {
+            sumOfSquares += (d - average) * (d - average);
+        }
+        double stdDeviation = Math.sqrt(sumOfSquares / densities.size());
+
+        if (stdDeviation < 1e-6) {
+            return new StatisticalAnomalyPayload(true, "변동 없음", currentDensity, average, stdDeviation, 0.0);
+        }
+
+        double zScore = (currentDensity - average) / stdDeviation;
+        String message;
+        if (zScore > 2.5) {
+            message = "이례적으로 높음";
+        } else if (zScore > 1.5) {
+            message = "평소보다 높음";
+        } else if (zScore < -1.5) {
+            message = "평소보다 낮음";
+        } else {
+            message = "정상 범위";
+        }
+
+        return new StatisticalAnomalyPayload(true, message, currentDensity, average, stdDeviation, zScore);
+    }
+
+    public List<CongestionHeatmapPayload> getCongestionHeatmapForLast7Days(Long cameraId) {
+        if (cameraId == null) {
+            return List.of();
+        }
+
+        LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+        List<AnalysisLog> logs = findReadyLogsAsc(cameraId, sevenDaysAgo, null);
+
+        Map<DayOfWeek, Map<Integer, Double>> hourlyAveragesByDay = logs.stream()
+            .collect(Collectors.groupingBy(
+                log -> log.getTimestamp().getDayOfWeek(),
+                () -> new EnumMap<>(DayOfWeek.class),
+                Collectors.groupingBy(
+                    log -> log.getTimestamp().getHour(),
+                    Collectors.averagingDouble(AnalysisLog::getDensity)
+                )
+            ));
+
+        List<CongestionHeatmapPayload> heatmap = new ArrayList<>();
+        for (DayOfWeek day : DayOfWeek.values()) {
+            Map<Integer, Double> hourlyAverages = hourlyAveragesByDay.getOrDefault(day, Map.of());
+            List<Double> densities = IntStream.range(0, 24)
+                .mapToDouble(hour -> hourlyAverages.getOrDefault(hour, 0.0))
+                .boxed()
+                .toList();
+
+            heatmap.add(new CongestionHeatmapPayload(
+                day.getDisplayName(TextStyle.SHORT, Locale.KOREAN),
+                day.getValue(),
+                densities
+            ));
+        }
+        return heatmap;
+    }
 
     public Map<Long, CameraAnalyticsSummary> summarizeCameras(List<Camera> cameras) {
         if (cameras == null || cameras.isEmpty()) {
@@ -49,15 +178,9 @@ public class AnalysisInsightsService {
             return Optional.empty();
         }
 
-        TrainingStatus trainingStatus = camera.getTrainingStatus();
-        if (trainingStatus == TrainingStatus.PENDING) {
-            log.debug("[Summary] Camera {} pending training. Returning empty summary.", camera.getId());
-            return Optional.of(buildEmptySummary(camera));
-        }
-
         List<AnalysisLog> logs = loadRecentLogs(camera);
         if (logs.isEmpty()) {
-            log.debug("[Summary] Camera {} has no analysis logs. Returning empty summary.", camera.getId());
+            log.debug("[Summary] Camera {} has no ready analysis logs. Returning empty summary.", camera.getId());
             return Optional.of(buildEmptySummary(camera));
         }
         return Optional.of(buildSummary(camera, logs));
@@ -69,14 +192,11 @@ public class AnalysisInsightsService {
         }
 
         var cameraOpt = cameraRepository.findById(cameraId);
+        // We still need the camera object to pass to loadRecentLogs.
         if (cameraOpt.isEmpty()) {
             return List.of();
         }
         Camera camera = cameraOpt.get();
-        if (camera.getTrainingStatus() == TrainingStatus.PENDING) {
-            log.debug("[StageAlerts] Camera {} is pending training. Skipping alert timeline build.", camera.getId());
-            return List.of();
-        }
 
         int normalizedLimit = Math.max(1, Math.min(limit, 50));
         List<AnalysisLog> logs = loadRecentLogs(camera);
@@ -92,14 +212,11 @@ public class AnalysisInsightsService {
         }
 
         var cameraOpt = cameraRepository.findById(cameraId);
+        // We still need the camera object to pass to loadLogsSince.
         if (cameraOpt.isEmpty()) {
             return List.of();
         }
         Camera camera = cameraOpt.get();
-        if (camera.getTrainingStatus() == TrainingStatus.PENDING) {
-            log.debug("[StageAlerts] Camera {} pending training for since-query; returning empty.", camera.getId());
-            return List.of();
-        }
 
         List<AnalysisLog> logs = loadLogsSince(camera, since);
         if (logs.isEmpty()) {
@@ -122,9 +239,9 @@ public class AnalysisInsightsService {
             .filter(summary -> summary.hasData() && summary.level() == CongestionLevel.DANGER)
             .count();
 
-        long recentEvents = analysisLogRepository.countValidLogsSince(
+        long recentEvents = analysisLogRepository.countLogsWithStatusSince(
             LocalDateTime.now().minusMinutes(30),
-            TrainingStatus.PENDING
+            AnalysisStatus.READY
         );
 
         return new DashboardSummary(
@@ -157,9 +274,7 @@ public class AnalysisInsightsService {
         EtaResult eta = computeEta(latest.getDensity(), velocity, acceleration);
         DangerWindow dangerWindow = computeDangerWindow(logsDesc);
         CongestionLevel level = resolveLevel(latest.getDensity());
-        List<StageAlertView> stageAlerts = (camera.getTrainingStatus() == TrainingStatus.PENDING)
-            ? List.of()
-            : buildStageAlertsTimeline(logsDesc, DEFAULT_ALERT_LIMIT);
+        List<StageAlertView> stageAlerts = buildStageAlertsTimeline(logsDesc, DEFAULT_ALERT_LIMIT);
 
         return new CameraAnalyticsSummary(
             camera.getId(),
@@ -211,33 +326,26 @@ public class AnalysisInsightsService {
         if (camera == null) {
             return List.of();
         }
-        LocalDateTime readySince = camera.getTrainingReadyAt();
-        if (readySince != null) {
-            return analysisLogRepository.findTop60ByCameraIdAndTimestampGreaterThanEqualOrderByTimestampDesc(
-                camera.getId(),
-                readySince
-            );
-        }
-        return analysisLogRepository.findTop60ByCameraIdOrderByTimestampDesc(camera.getId());
+        // Fetch only logs with READY status, up to 60, ordered by timestamp descending
+        return analysisLogRepository.findTop60ByCameraIdAndAnalysisStatusOrderByTimestampDesc(
+            camera.getId(),
+            AnalysisStatus.READY
+        );
     }
 
     private List<AnalysisLog> loadLogsSince(Camera camera, LocalDateTime since) {
         if (camera == null) {
             return List.of();
         }
-        LocalDateTime effectiveSince = since;
-        LocalDateTime readySince = camera.getTrainingReadyAt();
-        if (readySince != null) {
-            if (effectiveSince == null || effectiveSince.isBefore(readySince)) {
-                effectiveSince = readySince;
-            }
-        }
-        if (effectiveSince == null) {
+        if (since == null) {
+            // If 'since' is null, defer to loadRecentLogs which already handles READY status
             return loadRecentLogs(camera);
         }
-        return analysisLogRepository.findByCameraIdAndTimestampGreaterThanEqualOrderByTimestampDesc(
+        // Directly fetch READY logs since the specified time.
+        return analysisLogRepository.findByCameraIdAndAnalysisStatusAndTimestampGreaterThanEqualOrderByTimestampDesc(
             camera.getId(),
-            effectiveSince
+            AnalysisStatus.READY,
+            since
         );
     }
 
@@ -412,39 +520,47 @@ public class AnalysisInsightsService {
             && eta.seconds() > 0
             && eta.seconds() <= ETA_NOTICE_WINDOW_SECONDS) {
             alerts.add(new StageAlertView(
+                current.getId(),
                 "A1",
                 "위험 임박",
                 "약 " + formatMinutes(eta.seconds()) + " 후 위험 수위 도달 예상",
                 StageSeverity.WARNING,
-                timestamp
+                timestamp,
+                density
             ));
         }
 
         if (density >= DANGER_THRESHOLD) {
             alerts.add(new StageAlertView(
+                current.getId(),
                 "A3",
                 "위험 수위 돌파",
                 String.format("밀집도 %.2f가 임계 %.2f를 초과했습니다.", density, DANGER_THRESHOLD),
                 StageSeverity.DANGER,
-                timestamp
+                timestamp,
+                density
             ));
 
             if (velocity != null && velocity > 0.02) {
                 alerts.add(new StageAlertView(
+                    current.getId(),
                     "A4",
                     "혼잡 심화",
                     String.format("분당 +%.2f포인트 속도로 증가 중", velocity * 100),
                     StageSeverity.DANGER,
-                    timestamp
+                    timestamp,
+                    density
                 ));
             }
         } else if (previous != null && previous.getDensity() >= DANGER_THRESHOLD) {
             alerts.add(new StageAlertView(
+                current.getId(),
                 "A6",
                 "위험 해소",
                 "밀집도가 위험 기준 아래로 감소했습니다.",
                 StageSeverity.INFO,
-                timestamp
+                timestamp,
+                density
             ));
         }
 
@@ -454,6 +570,55 @@ public class AnalysisInsightsService {
     private String formatMinutes(long etaSeconds) {
         long minutes = (long) Math.ceil(etaSeconds / 60d);
         return minutes + "분";
+    }
+
+    private List<AnalysisLog> findReadyLogsAsc(Long cameraId, LocalDateTime start, LocalDateTime end) {
+        if (cameraId == null || start == null) {
+            return List.of();
+        }
+        if (end == null) {
+            // "After" query
+            return analysisLogRepository.findByCameraIdAndAnalysisStatusAndTimestampAfterOrderByTimestampAsc(
+                cameraId,
+                AnalysisStatus.READY,
+                start
+            );
+        } else {
+            // "Between" query
+            return analysisLogRepository.findByCameraIdAndAnalysisStatusAndTimestampBetweenOrderByTimestampAsc(
+                cameraId,
+                AnalysisStatus.READY,
+                start,
+                end
+            );
+        }
+    }
+
+    public List<DensityPointPayload> getDensityHistory(Long cameraId, LocalDateTime start, LocalDateTime end) {
+        if (cameraId == null || start == null || end == null) {
+            return List.of();
+        }
+
+        List<AnalysisLog> logs = findReadyLogsAsc(cameraId, start, end);
+        
+        return logs.stream()
+            .map(log -> new DensityPointPayload(log.getTimestamp(), log.getDensity()))
+            .toList();
+    }
+
+    public Optional<AnalysisLogDetailPayload> getLogDetails(Long logId) {
+        Optional<AnalysisLog> logOpt = analysisLogRepository.findByIdAndAnalysisStatus(logId, AnalysisStatus.READY);
+        if (logOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        AnalysisLog log = logOpt.get();
+        LocalDateTime start = log.getTimestamp().minusMinutes(5);
+        LocalDateTime end = log.getTimestamp().plusMinutes(5);
+
+        List<DensityPointPayload> history = getDensityHistory(log.getCamera().getId(), start, end);
+
+        return Optional.of(AnalysisLogDetailPayload.from(log, history));
     }
 }
 

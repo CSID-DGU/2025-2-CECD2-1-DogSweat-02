@@ -46,7 +46,9 @@ public record AnalysisCameraPayload(
             summary.etaMessage(),
             summary.timeInDangerSeconds(),
             format(summary.timeInDangerSince()),
-            summary.densitySeries().stream().map(DensityPointPayload::from).toList(),
+            summary.densitySeries().stream()
+                .map(sample -> new DensityPointPayload(sample.timestamp(), sample.density()))
+                .toList(),
             summary.stageAlerts().stream().map(StageAlertPayload::from).toList()
         );
     }
