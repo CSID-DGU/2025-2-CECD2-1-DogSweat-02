@@ -48,28 +48,37 @@ document.addEventListener('DOMContentLoaded', () => {
         chartCanvas.style.display = 'none';
 
         const now = new Date();
-        let primaryStart = new Date();
+        let primaryStart, primaryEnd;
         let periodLabel = "현재";
 
-        switch (activePeriod) {
-            case '24h': primaryStart.setDate(now.getDate() - 1); periodLabel = "오늘"; break;
-            case '7d': primaryStart.setDate(now.getDate() - 7); periodLabel = "이번 주"; break;
-            default: primaryStart.setHours(now.getHours() - 2); break;
+        // 1. Calculate Primary Range (Using Timestamps for precision)
+        primaryEnd = now;
+        if (activePeriod === '24h') {
+            primaryStart = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+            periodLabel = "오늘";
+        } else if (activePeriod === '7d') {
+            primaryStart = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            periodLabel = "이번 주";
+        } else {
+            // Default 2h
+            primaryStart = new Date(now.getTime() - (2 * 60 * 60 * 1000));
         }
 
-        const promises = [fetchDataForPeriod(primaryStart, now)];
+        const promises = [fetchDataForPeriod(primaryStart, primaryEnd)];
         let compareLabel = null;
 
+        // 2. Calculate Compare Range
         if (activeCompare) {
-            let compareStart = new Date(primaryStart);
-            let compareEnd = new Date(now);
+            let compareStart, compareEnd;
             if (activeCompare === 'yesterday') {
-                compareStart.setDate(compareStart.getDate() - 1);
-                compareEnd.setDate(compareEnd.getDate() - 1);
+                // Compare with same window yesterday (minus 24h)
+                compareStart = new Date(primaryStart.getTime() - (24 * 60 * 60 * 1000));
+                compareEnd = new Date(primaryEnd.getTime() - (24 * 60 * 60 * 1000));
                 compareLabel = "어제";
             } else if (activeCompare === 'lastWeek') {
-                compareStart.setDate(compareStart.getDate() - 7);
-                compareEnd.setDate(compareEnd.getDate() - 7);
+                // Compare with same window last week (minus 7d)
+                compareStart = new Date(primaryStart.getTime() - (7 * 24 * 60 * 60 * 1000));
+                compareEnd = new Date(primaryEnd.getTime() - (7 * 24 * 60 * 60 * 1000));
                 compareLabel = "지난 주";
             }
             promises.push(fetchDataForPeriod(compareStart, compareEnd));
@@ -81,21 +90,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 chartPlaceholder.textContent = '해당 기간에 대한 분석 데이터가 없습니다.';
                 return;
             }
+
+            // 3. Resample Data to align X-axis
+            // Determine interval: 1h for 7d, 5min for 24h, 2min for 2h
+            let intervalMs;
+            if (activePeriod === '7d') intervalMs = 60 * 60 * 1000;
+            else if (activePeriod === '24h') intervalMs = 5 * 60 * 1000;
+            else intervalMs = 2 * 60 * 1000;
+
+            const resampledPrimary = resampleData(primaryData, primaryStart, primaryEnd, intervalMs);
+
+            let resampledCompare = null;
+            if (compareData && compareData.length > 0) {
+                // Shift compare data timestamps to match primary range
+                const timeOffset = activeCompare === 'yesterday'
+                    ? 24 * 60 * 60 * 1000
+                    : 7 * 24 * 60 * 60 * 1000;
+
+                const shiftedCompareData = compareData.map(point => ({
+                    ...point,
+                    timestamp: new Date(new Date(point.timestamp).getTime() + timeOffset).toISOString()
+                }));
+
+                resampledCompare = resampleData(shiftedCompareData, primaryStart, primaryEnd, intervalMs);
+            }
+
+            // Generate labels from the time buckets
+            const labels = generateTimeLabels(primaryStart, primaryEnd, intervalMs);
+
             const datasets = [{
                 label: periodLabel,
-                data: processDataWithGaps(primaryData),
+                data: resampledPrimary,
                 borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, 0.08)',
                 tension: 0.1, fill: true, pointRadius: 0, borderWidth: 2
             }];
-            if (compareData) {
+
+            if (resampledCompare) {
                 datasets.push({
                     label: compareLabel,
-                    data: processDataWithGaps(compareData),
+                    data: resampledCompare,
                     borderColor: '#94a3b8', backgroundColor: 'rgba(148, 163, 184, 0.05)',
                     tension: 0.1, borderDash: [5, 5], fill: false, pointRadius: 0, borderWidth: 2
                 });
             }
-            renderChart(datasets, primaryData);
+
+            renderChart(labels, datasets, resampledPrimary, resampledCompare);
             chartPlaceholder.hidden = true;
             chartCanvas.style.display = 'block';
         } catch (error) {
@@ -104,23 +143,69 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const processDataWithGaps = (data) => {
-        if (!data || data.length < 2) return data.map(p => p.density);
-        const GAP_THRESHOLD_SECONDS = 120;
-        const processed = [data[0].density];
-        for (let i = 1; i < data.length; i++) {
-            const prevTime = new Date(data[i - 1].timestamp);
-            const currTime = new Date(data[i].timestamp);
-            if (((currTime - prevTime) / 1000) > GAP_THRESHOLD_SECONDS) processed.push(null);
-            processed.push(data[i].density);
+    const updateControlStates = () => {
+        const btnYesterday = compareControls.querySelector('[data-compare="yesterday"]');
+        const btn7d = periodControls.querySelector('[data-period="7d"]');
+
+        if (btnYesterday && btn7d) {
+            if (activeCompare === 'yesterday') {
+                btn7d.disabled = true;
+                btn7d.classList.add('is-disabled');
+            } else {
+                btn7d.disabled = false;
+                btn7d.classList.remove('is-disabled');
+            }
+
+            if (activePeriod === '7d') {
+                btnYesterday.disabled = true;
+                btnYesterday.classList.add('is-disabled');
+            } else {
+                btnYesterday.disabled = false;
+                btnYesterday.classList.remove('is-disabled');
+            }
         }
-        return processed;
     };
 
-    const renderChart = (datasets, primaryData) => {
-        const labels = primaryData.map(point => new Date(point.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
+    // Resample data into fixed time buckets
+    const resampleData = (data, startTime, endTime, intervalMs) => {
+        const start = startTime.getTime();
+        const end = endTime.getTime();
+        const bucketCount = Math.ceil((end - start) / intervalMs);
+        const buckets = new Array(bucketCount).fill(null).map(() => ({ sum: 0, count: 0 }));
+
+        data.forEach(point => {
+            const time = new Date(point.timestamp).getTime();
+            if (time >= start && time < end) {
+                const bucketIndex = Math.floor((time - start) / intervalMs);
+                if (bucketIndex >= 0 && bucketIndex < bucketCount) {
+                    buckets[bucketIndex].sum += point.density;
+                    buckets[bucketIndex].count++;
+                }
+            }
+        });
+
+        return buckets.map(b => b.count > 0 ? b.sum / b.count : null);
+    };
+
+    const generateTimeLabels = (startTime, endTime, intervalMs) => {
+        const labels = [];
+        const start = startTime.getTime();
+        const end = endTime.getTime();
+        for (let time = start; time < end; time += intervalMs) {
+            const date = new Date(time);
+            const day = date.getDate();
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            labels.push(`${day}일 ${hour}:${minute}`);
+        }
+        return labels;
+    };
+
+    const renderChart = (labels, datasets, primaryData, compareData) => {
         if (trendChart) trendChart.destroy();
-        const dataMax = isFinite(Math.max(...primaryData.map(p => p.density))) ? Math.max(...primaryData.map(p => p.density)) : 0;
+
+        const allValues = [...primaryData, ...(compareData || [])].filter(v => v !== null);
+        const dataMax = allValues.length > 0 ? Math.max(...allValues) : 0;
         const suggestedCeiling = Math.max(dataMax * 1.2, 0.5);
 
         trendChart = new Chart(chartCanvas, {
@@ -130,9 +215,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' },
                 plugins: {
                     legend: { display: datasets.length > 1 },
-                    tooltip: { callbacks: { label: (c) => `${c.dataset.label || ''}: 밀집도 ${c.parsed.y.toFixed(3)}` } }
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => `${c.dataset.label || ''}: 밀집도 ${c.parsed.y !== null ? c.parsed.y.toFixed(3) : 'N/A'}`
+                        }
+                    }
                 },
-                scales: { y: { beginAtZero: true, suggestedMax: suggestedCeiling }, x: { ticks: { autoSkip: true, maxTicksLimit: 10 } } }
+                scales: {
+                    y: { beginAtZero: true, suggestedMax: suggestedCeiling },
+                    x: { ticks: { autoSkip: true, maxTicksLimit: 10 } }
+                }
             }
         });
     };
@@ -151,9 +243,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (density <= 0) return '#ebedf0';
         const maxDensity = 0.8;
         const normalized = Math.min(density, maxDensity) / maxDensity;
-        const hue = Math.round(150 * (1 - normalized));
-        const saturation = 70 + (normalized * 25);
-        const lightness = 65 - (normalized * 20);
+
+        // 비선형 변환으로 전체 범위에서 색상 변화 강조
+        const enhanced = Math.pow(normalized, 0.6);
+
+        const hue = Math.round(150 * (1 - enhanced));  // 150 (초록) -> 0 (빨강)
+        const saturation = 40 + (enhanced * 58);        // 40% -> 98%
+        const lightness = 75 - (enhanced * 40);         // 75% -> 35%
+
         return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     };
 
@@ -212,7 +309,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     };
-
 
     // --- Alerts Functions ---
     const fetchAndRenderAlerts = async () => {
@@ -295,10 +391,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-
     // --- Initial Setup ---
     const init = () => {
         if (!cameraId) return;
+        updateControlStates();
         updateChart();
         fetchAndRenderHeatmap();
         fetchAndRenderAlerts();
@@ -308,16 +404,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     periodControls.addEventListener('click', (event) => {
         const button = event.target.closest('[data-period]');
-        if (!button) return;
+        if (!button || button.disabled) return;
         activePeriod = button.dataset.period;
         periodControls.querySelectorAll('[data-period]').forEach(btn => btn.classList.remove('is-active'));
         button.classList.add('is-active');
+        updateControlStates();
         updateChart();
     });
 
     compareControls.addEventListener('click', (event) => {
         const button = event.target.closest('[data-compare]');
-        if (!button) return;
+        if (!button || button.disabled) return;
         const compareValue = button.dataset.compare;
         if (activeCompare === compareValue) {
             activeCompare = null;
@@ -327,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
             compareControls.querySelectorAll('[data-compare]').forEach(btn => btn.classList.remove('is-active'));
             button.classList.add('is-active');
         }
+        updateControlStates();
         updateChart();
     });
 
