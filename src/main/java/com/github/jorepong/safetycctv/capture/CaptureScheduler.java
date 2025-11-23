@@ -5,10 +5,17 @@ import com.github.jorepong.safetycctv.camera.TrainingStatus;
 import com.github.jorepong.safetycctv.capture.dto.AiAnalysisResponse;
 import com.github.jorepong.safetycctv.capture.dto.PerspectiveMapTrainingResponse;
 import com.github.jorepong.safetycctv.entity.Camera;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -29,43 +36,106 @@ public class CaptureScheduler {
     private final TrainingScheduleTracker trainingScheduleTracker;
     private final PerspectiveTrainingDataPruner perspectiveTrainingDataPruner;
 
+    private final int groupSize;
+    private final int groupIntervalSeconds;
+
+    private final AtomicInteger lastProcessedIndex = new AtomicInteger(-1);
+    private ScheduledExecutorService executorService;
+
+
     public CaptureScheduler(
         CameraService cameraService,
         WebClient.Builder webClientBuilder,
         @Value("${ai.server.base-url}") String aiServerBaseUrl,
         TrainingScheduleTracker trainingScheduleTracker,
-        PerspectiveTrainingDataPruner perspectiveTrainingDataPruner
+        PerspectiveTrainingDataPruner perspectiveTrainingDataPruner,
+        @Value("${camera.scheduler.group-size}") int groupSize,
+        @Value("${camera.scheduler.group-interval-seconds}") int groupIntervalSeconds
     ) {
         this.cameraService = cameraService;
         this.webClient = webClientBuilder.baseUrl(aiServerBaseUrl).build();
         this.trainingScheduleTracker = trainingScheduleTracker;
         this.perspectiveTrainingDataPruner = perspectiveTrainingDataPruner;
+        this.groupSize = groupSize;
+        this.groupIntervalSeconds = groupIntervalSeconds;
     }
 
-    /**
-     * Periodically triggers the AI server to process all registered cameras.
-     * Runs every 30 seconds, as per the project plan.
-     */
-    @Scheduled(initialDelay = 10000, fixedRate = 30000)
-    public void triggerAnalysisForAllCameras() {
-        log.info("--- Starting scheduled AI analysis trigger task ---");
-        List<Camera> cameras = cameraService.fetchAll();
+    @PostConstruct
+    public void initialize() {
+        log.info("그룹 분석 스케줄러를 초기화합니다. 그룹 크기: {}, 그룹 간격: {}초", groupSize, groupIntervalSeconds);
+        // A single-threaded scheduler is sufficient to run our sequential-group logic.
+        this.executorService = Executors.newSingleThreadScheduledExecutor();
+        // Schedule the first run of the task with an initial delay.
+        this.executorService.schedule(this::executeAnalysisGroup, 10, TimeUnit.SECONDS);
+    }
 
-        if (cameras.isEmpty()) {
-            log.info("No cameras registered. Skipping AI trigger task.");
-            return;
-        }
+    private void executeAnalysisGroup() {
+        try {
+            List<Camera> allCameras = cameraService.fetchAll();
+            if (allCameras.isEmpty()) {
+                log.info("등록된 카메라가 없어 그룹 분석 작업을 건너뜁니다.");
+                return;
+            }
 
-        log.info("Found {} cameras to process. Triggering AI server.", cameras.size());
+            int totalCameras = allCameras.size();
+            int startIndex = (lastProcessedIndex.get() + 1) % totalCameras;
 
-        Flux.fromIterable(cameras)
-            .flatMap(this::requestAnalysis)
-            .doOnComplete(() -> log.info("--- Finished scheduled AI analysis trigger task ---"))
-            .subscribe(
-                unused -> { },
-                error -> log.error("Unexpected error while triggering AI analysis", error)
+            List<Camera> groupToProcess = new java.util.ArrayList<>();
+            for (int i = 0; i < groupSize; i++) {
+                int cameraIndex = (startIndex + i) % totalCameras;
+                groupToProcess.add(allCameras.get(cameraIndex));
+            }
+
+            int lastIndexInGroup = (startIndex + groupSize - 1) % totalCameras;
+            lastProcessedIndex.set(lastIndexInGroup);
+
+            List<String> cameraNames = groupToProcess.stream().map(Camera::getName).toList();
+            log.info("[스케줄러] 전체 {}대의 카메라를 찾았습니다. 그룹(크기: {}/{}) 분석을 {}번 인덱스부터 시작합니다: {}",
+                totalCameras,
+                groupToProcess.size(),
+                groupSize,
+                startIndex,
+                cameraNames
             );
+
+            // Trigger analysis for the selected group and wait for all to complete.
+            // flatMap handles parallel execution, and .then().block() waits for completion.
+            Flux.fromIterable(groupToProcess)
+                .flatMap(this::requestAnalysis)
+                .then() // Wait for all Monos in the Flux to complete
+                .block(); // Block the scheduler thread until the group is done
+
+            log.info("그룹 분석 완료: {}", cameraNames);
+
+        } catch (Exception e) {
+            log.error("그룹 분석 스케줄러 작업 중 예기치 않은 오류가 발생했습니다", e);
+        } finally {
+            // Schedule the next run after the interval.
+            // This creates the sequential, correctly-paced loop.
+            if (executorService != null && !executorService.isShutdown()) {
+                executorService.schedule(this::executeAnalysisGroup, groupIntervalSeconds, TimeUnit.SECONDS);
+            }
+        }
     }
+
+    @PreDestroy
+    public void shutdown() {
+        log.info("그룹 분석 스케줄러의 Executor 서비스를 종료합니다.");
+        if (executorService != null) {
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                    log.warn("Executor 서비스가 10초 내에 종료되지 않았습니다. 강제 종료를 시도합니다.");
+                    executorService.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                log.error("Executor 서비스 종료 대기 중 오류가 발생했습니다", e);
+                executorService.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
 
     /**
      * Periodically triggers the AI server to train perspective maps for all cameras.
@@ -73,7 +143,7 @@ public class CaptureScheduler {
      */
     @Scheduled(initialDelay = 600000, fixedRate = 3600000) // 10-min delay, 1-hour rate
     public void triggerPerspectiveMapTraining() {
-        log.info("--- Starting scheduled perspective map training task ---");
+        log.info("--- 원근 맵 학습 스케줄링 작업을 시작합니다 ---");
         // Set the next training time as soon as the task starts
         trainingScheduleTracker.updateNextTrainingTime(LocalDateTime.now().plusHours(1));
         perspectiveTrainingDataPruner.pruneAllCameras();
@@ -86,31 +156,31 @@ public class CaptureScheduler {
             .bodyToMono(PerspectiveMapTrainingResponse.class)
             .doOnSuccess(response -> {
                 if ("SUCCESS".equals(response.getStatus())) {
-                    log.info("Perspective map training finished. {}", response.getMessage());
+                    log.info("원근 맵 학습이 완료되었습니다. {}", response.getMessage());
                     response.getTrainedCameras().forEach(cam ->
-                        log.info("  - Trained: {} ({} samples)", cam.getCameraName(), cam.getSamplesUsed())
+                        log.info("  - 학습 완료: {} ({}개 샘플 사용)", cam.getCameraName(), cam.getSamplesUsed())
                     );
                     response.getSkippedCameras().forEach(cam ->
-                        log.warn("  - Skipped: Camera ID {} (Reason: {}, Samples: {})", cam.getCameraId(), cam.getReason(), cam.getSamplesAvailable())
+                        log.warn("  - 건너뜀: 카메라 ID {} (사유: {}, 사용 가능 샘플: {})", cam.getCameraId(), cam.getReason(), cam.getSamplesAvailable())
                     );
                 } else {
-                    log.error("Perspective map training failed. Response: {}", response);
+                    log.error("원근 맵 학습에 실패했습니다. 응답: {}", response);
                 }
             })
             .onErrorResume(WebClientResponseException.class, ex -> {
                 log.error(
-                    "AI server returned {} during perspective map training. Body: {}",
+                    "원근 맵 학습 중 AI 서버가 {} 코드를 반환했습니다. 본문: {}",
                     ex.getStatusCode(),
                     ex.getResponseBodyAsString()
                 );
                 return Mono.empty();
             })
             .onErrorResume(WebClientRequestException.class, ex -> {
-                log.error("Failed to reach AI server for perspective map training: {}", ex.getMessage());
+                log.error("원근 맵 학습을 위해 AI 서버에 연결하지 못했습니다: {}", ex.getMessage());
                 return Mono.empty();
             })
             .onErrorResume(ex -> {
-                log.error("Unexpected error during perspective map training", ex);
+                log.error("원근 맵 학습 중 예기치 않은 오류가 발생했습니다", ex);
                 return Mono.empty();
             })
             .subscribe();
@@ -130,20 +200,22 @@ public class CaptureScheduler {
             .retrieve()
             .bodyToMono(AiAnalysisResponse.class) // Change to AiAnalysisResponse.class
             .doOnSuccess(response -> {
-                log.info("AI server response for camera [{}]: {}", camera.getName(), response);
+                log.info("카메라 [{}]에 대한 AI 서버 응답: {}", camera.getName(), response);
                 if (response.getTrainingStatus() != null) {
                     try {
                         TrainingStatus status = TrainingStatus.valueOf(response.getTrainingStatus());
                         cameraService.updateTrainingStatus(camera.getId(), status);
                     } catch (IllegalArgumentException e) {
-                        log.warn("Unknown training status received for camera [{}]: {}", camera.getName(), response.getTrainingStatus());
+                        log.warn("카메라 [{}]로부터 알 수 없는 학습 상태를 받았습니다: {}", camera.getName(), response.getTrainingStatus());
                         cameraService.updateTrainingStatus(camera.getId(), TrainingStatus.UNKNOWN);
+                    } catch (EntityNotFoundException e) {
+                        log.warn("분석 중 카메라 '{}'(ID: {})가 삭제되었습니다. 상태 업데이트를 건너뜁니다.", camera.getName(), camera.getId());
                     }
                 }
             })
             .onErrorResume(WebClientResponseException.class, ex -> {
                 log.error(
-                    "AI server returned {} while processing camera [{}]. Body: {}",
+                    "카메라 [{}] 처리 중 AI 서버가 {} 코드를 반환했습니다. 본문: {}",
                     ex.getStatusCode(),
                     camera.getName(),
                     ex.getResponseBodyAsString()
@@ -151,11 +223,11 @@ public class CaptureScheduler {
                 return Mono.empty();
             })
             .onErrorResume(WebClientRequestException.class, ex -> {
-                log.error("Failed to reach AI server for camera [{}]: {}", camera.getName(), ex.getMessage());
+                log.error("카메라 [{}] 분석을 위해 AI 서버에 연결하지 못했습니다: {}", camera.getName(), ex.getMessage());
                 return Mono.empty();
             })
             .onErrorResume(ex -> {
-                log.error("Unexpected error while requesting analysis for camera [{}]", camera.getName(), ex);
+                log.error("카메라 [{}]에 대한 분석 요청 중 예기치 않은 오류가 발생했습니다", camera.getName(), ex);
                 return Mono.empty();
             })
             .then(); // Convert to Mono<Void> to signal completion

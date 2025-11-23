@@ -50,7 +50,7 @@ public class WebController {
 
     @GetMapping("/")
     public String dashboard(
-        @RequestParam(value = "cameraId", required = false) Long cameraId,
+            @RequestParam(value = "cameraId", required = false) Long cameraId,
         Model model
     ) {
         // 1. Fetch all cameras once
