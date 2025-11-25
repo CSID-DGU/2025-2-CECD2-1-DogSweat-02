@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org" th:fragment="layout (title, content, headResources)">
+
 <head>
     <meta charset="UTF-8">
     <title th:replace="${title}">E-N-C 안전 시스템</title>
     <link rel="stylesheet" th:href="@{/css/layout.css}">
-    <link rel="icon" type="image/x-icon" th:href="@{/favicon.ico}">
+    <link rel="icon" type="image/png" th:href="@{/favicon.png}">
     <th:block th:if="${headResources != null}" th:replace="${headResources}"></th:block>
 </head>
+
 <body>
     <div class="app-shell">
         <div class="page-shell">
@@ -22,11 +24,14 @@
                 <a th:href="@{/}" th:classappend="${requestURI == '/' ? 'active' : ''}">대시보드</a>
                 <a th:href="@{/analysis}" th:classappend="${requestURI == '/analysis' ? 'active' : ''}">분석</a>
                 <a th:href="@{/map}" th:classappend="${#strings.startsWith(requestURI, '/map') ? 'active' : ''}">지도</a>
-                <a th:href="@{/alerts}" th:classappend="${#strings.startsWith(requestURI, '/alerts') ? 'active' : ''}">알림 이력</a>
+                <a th:href="@{/alerts}"
+                    th:classappend="${#strings.startsWith(requestURI, '/alerts') ? 'active' : ''}">알림 이력</a>
                 <p class="side-menu__title">통계 분석</p>
-                <a th:href="@{/comparison}" th:classappend="${#strings.startsWith(requestURI, '/comparison') ? 'active' : ''}">패턴/비교 분석</a>
+                <a th:href="@{/comparison}"
+                    th:classappend="${#strings.startsWith(requestURI, '/comparison') ? 'active' : ''}">패턴/비교 분석</a>
                 <p class="side-menu__title">관리</p>
-                <a th:href="@{/cameras}" th:classappend="${#strings.startsWith(requestURI, '/cameras') ? 'active' : ''}">카메라 관리</a>
+                <a th:href="@{/cameras}"
+                    th:classappend="${#strings.startsWith(requestURI, '/cameras') ? 'active' : ''}">카메라 관리</a>
 
                 <p class="side-menu__title">디버그</p>
                 <a th:href="@{/debug/train-perspective-map}" class="side-menu__sub-item">원근맵 학습 실행</a>
@@ -35,4 +40,5 @@
         </div>
     </div>
 </body>
+
 </html>

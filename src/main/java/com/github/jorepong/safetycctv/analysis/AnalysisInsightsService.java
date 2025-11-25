@@ -137,26 +137,37 @@ public class AnalysisInsightsService {
         LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
         List<AnalysisLog> logs = findReadyLogsAsc(cameraId, sevenDaysAgo, null);
 
-        Map<DayOfWeek, Map<Integer, Double>> hourlyAveragesByDay = logs.stream()
+        Map<DayOfWeek, Map<Integer, DoubleSummaryStatistics>> hourlyStatsByDay = logs.stream()
                 .collect(Collectors.groupingBy(
                         log -> log.getTimestamp().getDayOfWeek(),
                         () -> new EnumMap<>(DayOfWeek.class),
                         Collectors.groupingBy(
                                 log -> log.getTimestamp().getHour(),
-                                Collectors.averagingDouble(AnalysisLog::getDensity))));
+                                Collectors.summarizingDouble(AnalysisLog::getDensity))));
 
         List<CongestionHeatmapPayload> heatmap = new ArrayList<>();
         for (DayOfWeek day : DayOfWeek.values()) {
-            Map<Integer, Double> hourlyAverages = hourlyAveragesByDay.getOrDefault(day, Map.of());
-            List<Double> densities = IntStream.range(0, 24)
-                    .mapToDouble(hour -> hourlyAverages.getOrDefault(hour, 0.0))
-                    .boxed()
-                    .toList();
+            Map<Integer, DoubleSummaryStatistics> hourlyStats = hourlyStatsByDay.getOrDefault(day, Map.of());
+
+            List<Double> averageDensities = new ArrayList<>();
+            List<Double> maxDensities = new ArrayList<>();
+
+            for (int hour = 0; hour < 24; hour++) {
+                DoubleSummaryStatistics stats = hourlyStats.get(hour);
+                if (stats != null && stats.getCount() > 0) {
+                    averageDensities.add(stats.getAverage());
+                    maxDensities.add(stats.getMax());
+                } else {
+                    averageDensities.add(0.0);
+                    maxDensities.add(0.0);
+                }
+            }
 
             heatmap.add(new CongestionHeatmapPayload(
                     day.getDisplayName(TextStyle.SHORT, Locale.KOREAN),
                     day.getValue(),
-                    densities));
+                    averageDensities,
+                    maxDensities));
         }
         return heatmap;
     }
@@ -595,7 +606,11 @@ public class AnalysisInsightsService {
         List<AnalysisLog> logs = findReadyLogsAsc(cameraId, start, end);
 
         return logs.stream()
-                .map(log -> new DensityPointPayload(log.getTimestamp(), log.getDensity()))
+                .map(log -> new DensityPointPayload(
+                        log.getTimestamp(),
+                        log.getDensity(),
+                        log.getPersonCount(),
+                        log.getAnnotatedImagePath()))
                 .toList();
     }
 
@@ -612,5 +627,70 @@ public class AnalysisInsightsService {
         List<DensityPointPayload> history = getDensityHistory(log.getCamera().getId(), start, end);
 
         return Optional.of(AnalysisLogDetailPayload.from(log, history));
+    }
+
+    public com.github.jorepong.safetycctv.analysis.dto.ComparisonSummaryPayload getComparisonSummary(Long cameraId) {
+        if (cameraId == null) {
+            return com.github.jorepong.safetycctv.analysis.dto.ComparisonSummaryPayload.empty();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        // 1. Current Average (Window: +/- 7 mins)
+        Double currentAvg = getAverageDensity(cameraId, now.minusMinutes(7), now.plusMinutes(7));
+
+        if (currentAvg == null) {
+            // If no current data, we can't calculate change rates.
+            // But we might still want to show past data?
+            // For now, let's return empty or partial data.
+            // Let's try to fetch past data anyway.
+        }
+
+        // 2. Yesterday Average (Window: +/- 7 mins)
+        LocalDateTime yesterday = now.minusDays(1);
+        Double yesterdayAvg = getAverageDensity(cameraId, yesterday.minusMinutes(7), yesterday.plusMinutes(7));
+
+        // 3. Last Week Average (Window: +/- 7 mins)
+        LocalDateTime lastWeek = now.minusWeeks(1);
+        Double lastWeekAvg = getAverageDensity(cameraId, lastWeek.minusMinutes(7), lastWeek.plusMinutes(7));
+
+        // 4. Calculate Changes
+        Double yesterdayChange = calculateChange(currentAvg, yesterdayAvg);
+        Double lastWeekChange = calculateChange(currentAvg, lastWeekAvg);
+
+        return new com.github.jorepong.safetycctv.analysis.dto.ComparisonSummaryPayload(
+                yesterdayAvg,
+                yesterdayChange,
+                lastWeekAvg,
+                lastWeekChange);
+    }
+
+    private Double getAverageDensity(Long cameraId, LocalDateTime start, LocalDateTime end) {
+        return analysisLogRepository.findAverageDensityByCameraIdAndAnalysisStatusAndTimestampBetween(
+                cameraId,
+                AnalysisStatus.READY,
+                start,
+                end);
+    }
+
+    private Double calculateChange(Double current, Double past) {
+        if (current == null || past == null) {
+            return null;
+        }
+        // Change rate: (current - past) / past? Or just simple difference?
+        // The user request implied simple difference or ratio.
+        // Given density is 0.0 ~ 1.0+, simple difference is often more readable for
+        // "density".
+        // But for "percentage change", (current - past) / past is standard.
+        // However, if past is 0, division by zero occurs.
+        // Let's stick to simple difference (current - past) as it's safer and intuitive
+        // for density (e.g. +0.1 increase).
+        // Wait, the UI expects percentage?
+        // The UI code: const percent = (change * 100).toFixed(1);
+        // If change is 0.1 (difference), UI shows 10%. This implies simple difference.
+        // If density goes from 0.5 to 0.6, diff is 0.1. UI shows +10%. This is
+        // misleading if interpreted as growth rate (which is 20%).
+        // But for "density points", +10%p (percentage points) is often what is meant.
+        // Let's use simple difference.
+        return current - past;
     }
 }
